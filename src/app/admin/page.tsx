@@ -2,17 +2,18 @@ import Kepala from "@/components/kepala";
 import { wajibUser } from "@/lib/sesi";
 import { db } from "@/lib/db";
 import { setAktif } from "@/lib/akun-actions";
+import { tarikSimpus } from "@/lib/sinkron-actions";
 import FormKader, { TombolReset } from "./form-kader";
 
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ galat?: string }>;
+  searchParams: Promise<{ galat?: string; ok?: string }>;
 }) {
   const user = await wajibUser("ADMIN");
-  const { galat } = await searchParams;
+  const { galat, ok } = await searchParams;
 
-  const [users, kelurahan] = await Promise.all([
+  const [users, kelurahan, cache] = await Promise.all([
     db.user.findMany({
       orderBy: [{ peran: "asc" }, { nama: "asc" }],
       include: { binaan: { include: { posyandu: true } } },
@@ -21,6 +22,7 @@ export default async function AdminPage({
       orderBy: { urutan: "asc" },
       include: { posyandu: { where: { aktif: true }, orderBy: { id: "asc" } } },
     }),
+    db.cacheDashboard.findUnique({ where: { kunci: "puskesmas" } }),
   ]);
 
   const kader = users.filter((u) => u.peran === "KADER");
@@ -40,6 +42,30 @@ export default async function AdminPage({
             {galat}
           </p>
         )}
+        {ok && (
+          <p className="mt-3 rounded-lg bg-[var(--teal-muda)] px-3 py-2 text-xs font-semibold text-[var(--teal-tua)]">
+            {ok}
+          </p>
+        )}
+
+        <section className="mt-5 rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-sm font-extrabold text-[var(--teal-tua)]">Sinkron SIMPUS</h2>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--teks-sekunder)]">
+                {cache
+                  ? `Tarikan terakhir: ${cache.sinkronPada.toLocaleString("id-ID")}.`
+                  : "Belum pernah tarik data. Isi SIMPUS_DATABASE_URL & SIMPUS_DEK di env dulu."}{" "}
+                Jadwal otomatis: mingguan (Railway cron → /api/sinkron).
+              </p>
+            </div>
+            <form action={tarikSimpus} className="shrink-0">
+              <button className="rounded-xl bg-[var(--teal)] px-4 py-2 text-xs font-bold text-white">
+                ⟳ Tarik sekarang
+              </button>
+            </form>
+          </div>
+        </section>
 
         <FormKader kelurahan={kelurahan.map((k) => ({
           id: k.id,
