@@ -65,7 +65,14 @@ export async function jalankanSinkron(): Promise<HasilSinkron> {
   }
   const dek = Buffer.from(dekHex, "hex");
 
-  const pg = new Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
+  // Timeout agar tombol tak menggantung selamanya bila Neon SIMPUS lambat/tak terjangkau
+  // (server action akan melempar error → dicatat & ditampilkan, bukan diam).
+  const pg = new Client({
+    connectionString: url,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 15000,
+    query_timeout: 60000,
+  });
   await pg.connect();
   try {
     // 1) master wilayah (id SIMPUS dipertahankan)

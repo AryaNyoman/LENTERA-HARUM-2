@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { setAktif } from "@/lib/akun-actions";
 import { tarikSimpus } from "@/lib/sinkron-actions";
 import FormKader, { TombolReset } from "./form-kader";
+import { TombolTarik } from "./tombol-tarik";
 
 export default async function AdminPage({
   searchParams,
@@ -60,9 +61,7 @@ export default async function AdminPage({
               </p>
             </div>
             <form action={tarikSimpus} className="shrink-0">
-              <button className="rounded-xl bg-[var(--teal)] px-4 py-2 text-xs font-bold text-white">
-                ⟳ Tarik sekarang
-              </button>
+              <TombolTarik />
             </form>
           </div>
         </section>
