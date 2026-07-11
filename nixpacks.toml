@@ -1,11 +1,13 @@
-# Railway (Nixpacks): pakai `npm install` (bukan `npm ci`) di fase install.
+# Railway (Nixpacks) — fix build @tailwindcss/oxide "Cannot find native binding".
 #
-# `npm ci` + package-lock.json yang di-generate di Windows kena bug npm
-# optional-dependencies (https://github.com/npm/cli/issues/4828): biner native
-# per-platform @tailwindcss/oxide-linux-x64-gnu tidak ikut terpasang di Linux,
-# sehingga `next build` gagal dengan "Cannot find native binding".
-# `npm install` me-resolve ulang optionalDependencies untuk platform Linux.
-# --include=dev memastikan devDependencies (next, tailwind, tsx, dll) tetap ada
-# walau build environment menyetel production.
+# Akar masalah: package-lock.json di-generate di Windows; `npm ci` MAUPUN
+# `npm install` yang membaca lockfile itu melewati biner native per-platform
+# @tailwindcss/oxide-linux-x64-gnu (bug npm optional-deps, npm/cli#4828),
+# sehingga `next build` gagal di Linux.
+#
+# Solusi (persis anjuran pesan error): hapus package-lock.json DI KONTAINER BUILD
+# saja lalu `npm install` segar → npm me-resolve biner untuk Linux dengan benar.
+# Repo tetap menyimpan lockfile (reproducibility lokal tak terganggu).
+# --include=dev memastikan devDependencies (next, tailwind, tsx) tetap terpasang.
 [phases.install]
-cmds = ['npm install --include=dev']
+cmds = ['rm -f package-lock.json', 'npm install --include=dev']
