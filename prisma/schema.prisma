@@ -1,0 +1,221 @@
+// SIMPUS-POSYANDU — skema database
+// Konvensi mengikuti keluarga SIMPUS-IMUN:
+//  - Dev lokal: provider "sqlite" (file dev.db). Deploy Railway: di-swap ke "postgresql".
+//    Karena itu TANPA enum & TANPA tipe Json — semua String (kompatibel keduanya).
+//  - PII anak TIDAK pernah disimpan terbuka: pola iv/tag/data (AES-256-GCM, kunci di env server).
+//  - Kode vaksin = kode kanonik SIMPUS (HB0_1_7H, PENTA1, ...) — lihat src/lib/vaksin.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════ WILAYAH — salinan master SIMPUS (sync mingguan) ═══════════
+
+/// id = id asli di database SIMPUS (bukan autoincrement) supaya pencocokan balik pasti.
+model Kelurahan {
+  id       Int        @id
+  nama     String
+  urutan   Int        @default(0)
+  posyandu Posyandu[]
+}
+
+/// `nama` = nama lingkungan persis master SIMPUS — dipakai di kolom "Posyandu" saat export
+/// agar impor di SIMPUS cocok "persis" tanpa wizard.
+model Posyandu {
+  id           Int            @id
+  kelurahanId  Int
+  kelurahan    Kelurahan      @relation(fields: [kelurahanId], references: [id])
+  nama         String
+  namaPosyandu String         @default("")
+  aktif        Boolean        @default(true)
+  khusus       Boolean        @default(false)
+  anakSimpus   AnakSimpus[]
+  anakBaru     AnakBaru[]
+  binaan       UserPosyandu[]
+
+  @@index([kelurahanId])
+}
+
+// ═══════════ AKUN ═══════════
+
+/// peran: "ADMIN" | "KADER" | "ORTU".
+/// Kader dibuat admin (sandi sementara → perluGantiSandi). Ortu daftar mandiri (username = No HP).
+model User {
+  id              Int            @id @default(autoincrement())
+  peran           String
+  nama            String
+  username        String         @unique
+  noHp            String         @default("")
+  sandiHash       String
+  aktif           Boolean        @default(true)
+  perluGantiSandi Boolean        @default(false)
+  dibuatPada      DateTime       @default(now())
+  diubahPada      DateTime       @updatedAt
+  binaan          UserPosyandu[]
+  sesi            Sesi[]
+  klaim           KlaimAnak[]
+}
+
+/// Posyandu binaan seorang kader (bisa lebih dari satu) — dasar scope semua query kader.
+model UserPosyandu {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posyanduId Int
+  posyandu   Posyandu @relation(fields: [posyanduId], references: [id])
+
+  @@unique([userId, posyanduId])
+  @@index([posyanduId])
+}
+
+/// Sesi login (token di cookie httpOnly).
+model Sesi {
+  id          String   @id
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kedaluwarsa DateTime
+  dibuatPada  DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ═══════════ ANAK ═══════════
+
+/// Salinan anak dari SIMPUS (read-only; hasil sync + dekripsi amplop layanan).
+/// data = JSON {nama, tglLahir, jk, namaOrtu, nik, noHp, alamat, rtRw, vaksin{kode→tgl}}
+/// dienkripsi ULANG dengan kunci server website ini (bukan kunci SIMPUS).
+model AnakSimpus {
+  id          Int           @id @default(autoincrement())
+  idSimpus    Int           @unique
+  posyanduId  Int
+  posyandu    Posyandu      @relation(fields: [posyanduId], references: [id])
+  iv          String
+  tag         String
+  data        String
+  sinkronPada DateTime
+  klaim       KlaimAnak[]
+  tumbuh      Tumbuh[]
+  centang     CentangOrtu[]
+
+  @@index([posyanduId])
+}
+
+/// Anak yang didaftarkan DI WEBSITE (kader/ortu) — bahan export Excel ke SIMPUS.
+/// status: "DRAF" → "DIEKSPOR" → "MASUK_SIMPUS" (cocok balik saat sync; anakSimpusId terisi).
+model AnakBaru {
+  id           Int           @id @default(autoincrement())
+  posyanduId   Int
+  posyandu     Posyandu      @relation(fields: [posyanduId], references: [id])
+  iv           String
+  tag          String
+  data         String
+  status       String        @default("DRAF")
+  dibuatOlehId Int
+  anakSimpusId Int?
+  dibuatPada   DateTime      @default(now())
+  diubahPada   DateTime      @updatedAt
+  klaim        KlaimAnak[]
+  tumbuh       Tumbuh[]
+  centang      CentangOrtu[]
+
+  @@index([posyanduId])
+  @@index([status])
+}
+
+// ═══════════ KLAIM ORANG TUA ═══════════
+
+/// Hubungan ortu ↔ anak. Tepat satu dari anakSimpusId/anakBaruId terisi (dijaga logika app).
+model KlaimAnak {
+  id           Int         @id @default(autoincrement())
+  userId       Int
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anakSimpusId Int?
+  anakSimpus   AnakSimpus? @relation(fields: [anakSimpusId], references: [id], onDelete: Cascade)
+  anakBaruId   Int?
+  anakBaru     AnakBaru?   @relation(fields: [anakBaruId], references: [id], onDelete: Cascade)
+  dibuatPada   DateTime    @default(now())
+
+  @@unique([userId, anakSimpusId])
+  @@unique([userId, anakBaruId])
+}
+
+/// Token QR sekali pakai yang dibuat kader dari detail anak (dasar klaim ortu).
+model KlaimToken {
+  id           Int       @id @default(autoincrement())
+  token        String    @unique
+  anakSimpusId Int?
+  anakBaruId   Int?
+  dibuatOlehId Int
+  kedaluwarsa  DateTime
+  dipakaiPada  DateTime?
+  dibuatPada   DateTime  @default(now())
+}
+
+// ═══════════ CATATAN BERSAMA (fitur lintas-peran) ═══════════
+
+/// Pengukuran tumbuh kembang (BB/TB/LK). Bisa dicatat kader ATAU ortu — dua sisi melihat.
+/// Penilaian z-score (Kemenkes 2020) dihitung saat tampil, tidak disimpan.
+model Tumbuh {
+  id            Int         @id @default(autoincrement())
+  anakSimpusId  Int?
+  anakSimpus    AnakSimpus? @relation(fields: [anakSimpusId], references: [id], onDelete: Cascade)
+  anakBaruId    Int?
+  anakBaru      AnakBaru?   @relation(fields: [anakBaruId], references: [id], onDelete: Cascade)
+  tgl           String
+  usiaBulan     Int
+  bb            Float?
+  tb            Float?
+  lk            Float?
+  dicatatOlehId Int
+  peranPencatat String
+  dibuatPada    DateTime    @default(now())
+
+  @@index([anakSimpusId])
+  @@index([anakBaruId])
+}
+
+/// Centang dosis oleh ortu (mis. imunisasi di klinik swasta) — 2 tingkat kepercayaan:
+/// verified=false (kuning, catatan ortu) → kader memverifikasi antar-akun → verified=true (biru).
+model CentangOrtu {
+  id            Int         @id @default(autoincrement())
+  anakSimpusId  Int?
+  anakSimpus    AnakSimpus? @relation(fields: [anakSimpusId], references: [id], onDelete: Cascade)
+  anakBaruId    Int?
+  anakBaru      AnakBaru?   @relation(fields: [anakBaruId], references: [id], onDelete: Cascade)
+  vaksinKode    String
+  tgl           String
+  lokasi        String      @default("")
+  verified      Boolean     @default(false)
+  verifikatorId Int?
+  dibuatOlehId  Int
+  dibuatPada    DateTime    @default(now())
+  diubahPada    DateTime    @updatedAt
+
+  @@index([anakSimpusId, vaksinKode])
+  @@index([anakBaruId, vaksinKode])
+}
+
+// ═══════════ CACHE & LOG ═══════════
+
+/// Statistik dashboard hasil tarikan SIMPUS (mingguan + tombol manual).
+/// kunci: "puskesmas" | "kelurahan:<idSimpus>" | "posyandu:<idSimpus>". data = JSON.
+model CacheDashboard {
+  id          Int      @id @default(autoincrement())
+  kunci       String   @unique
+  data        String
+  sinkronPada DateTime
+}
+
+/// Jejak minimal: login, export, tarik data, verifikasi.
+model LogAktivitas {
+  id     Int      @id @default(autoincrement())
+  userId Int?
+  aksi   String
+  detail String   @default("")
+  pada   DateTime @default(now())
+}

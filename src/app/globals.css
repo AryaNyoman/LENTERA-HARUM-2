@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* ═══ Warna dasar SIMPUS-POSYANDU ═══
+   Teal = identitas keluarga SIMPUS (dipakai app Kader & SIMPUS petugas).
+   Coral = aksen sisi orang tua (warisan IMUN-KU). */
+:root {
+  --teal: #2e9e8f;
+  --teal-tua: #22766b;
+  --teal-muda: #e3f3f0;
+  --coral: #e8704a;
+  --coral-muda: #faece7;
+  --bg: #f2f8f6;
+  --kartu: #ffffff;
+  --teks: #1f2d2b;
+  --teks-sekunder: #5f7370;
+  --garis: #dce8e5;
+  --kuning: #f2b705;
+  --merah: #d84b40;
+  --hijau: #3b9e4d;
+}
+
+html {
+  background: var(--bg);
+  color: var(--teks);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  min-height: 100dvh;
+}

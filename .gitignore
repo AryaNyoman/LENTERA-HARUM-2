@@ -1,0 +1,27 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# produksi
+/build
+
+# env & rahasia — JANGAN pernah di-commit
+.env
+.env.local
+.env*.local
+
+# database lokal (SQLite dev)
+prisma/*.db
+prisma/*.db-journal
+/backups
+
+# generated
+next-env.d.ts
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
