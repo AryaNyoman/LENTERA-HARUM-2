@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "simpus-posyandu-dev",
-      "runtimeExecutable": "D:\\nodejs\\npm.cmd",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": ["/c", "set PATH=D:\\nodejs;%PATH% && npm run dev"],
       "port": 3000
     }
   ]

@@ -36,6 +36,15 @@ Kakaknya: **SIMPUS-IMUN petugas** (repo `Simpus-Imun`, Next.js+Prisma, live di R
 `npm run dev` (dev, port 3000) · `npm test` (vitest) · `npm run db:push` / `db:seed` /
 `db:studio`. Node.js portabel komputer puskesmas: `D:\nodejs` (sudah di PATH user).
 
+## Sinkron SIMPUS & deploy (sudah terpasang)
+- Sinkron satu-arah: `src/lib/sinkron.ts` — env `SIMPUS_DATABASE_URL` + `SIMPUS_DEK`
+  (dari `scripts/export-dek-layanan.ts` di repo Simpus-Imun) + `CRON_SECRET` utk
+  `/api/sinkron`. Tombol manual di /admin. Pencocokan balik DIEKSPOR→MASUK_SIMPUS
+  memindahkan klaim/tumbuh/centang — jangan diubah tanpa paham alurnya.
+- Deploy Railway: `railway.json` → `build:railway` (swap provider ke postgres) +
+  `start:railway` (db push). Produksi mulai kosong: sinkron dulu, baru buat akun kader.
+- Tiap rilis: naikkan `CACHE_NAME` di `public/sw.js` (pola sama app lama).
+
 ## Export ke SIMPUS (jangan diubah sembarangan)
 Sheet **"Data Anak"**, kolom: Nama, Tgl Lahir, JK (L/P), Nama Ortu, NIK, No HP, Alamat,
 RT/RW, Posyandu, lalu 20 kolom dosis persis `DOSIS_REGISTRY[].nama`. Tanggal DD/MM/YYYY.
