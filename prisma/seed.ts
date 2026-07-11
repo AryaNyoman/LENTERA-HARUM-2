@@ -11,6 +11,10 @@ import bcrypt from "bcryptjs";
 
 const db = new PrismaClient();
 
+// Lokal (SQLite) = seed lengkap untuk dev. Produksi (Postgres) = HANYA wilayah + admin,
+// tanpa akun dev ber-sandi publik (kader123/ortu123) atau anak contoh. Deteksi dari DATABASE_URL.
+const SEED_LOKAL = (process.env.DATABASE_URL ?? "").startsWith("file:");
+
 // ── segel PII (duplikat kecil dari src/lib/brankas.ts agar seed mandiri) ──
 function segel(obj: unknown) {
   const hex = process.env.KUNCI_SERVER ?? "";
@@ -74,6 +78,13 @@ async function main() {
       },
     });
     infoAdmin = "sandi: " + sandiAdmin + "   (CATAT — hanya tampil sekali)";
+  }
+
+  // Produksi: berhenti di sini — jangan buat akun dev / anak contoh di server publik.
+  if (!SEED_LOKAL) {
+    console.log("Seed produksi selesai — hanya wilayah + admin.");
+    console.log("  admin → username: admin   " + infoAdmin);
+    return;
   }
 
   // kader contoh (dev): binaan = posyandu id 1 (Nesa Timur)
