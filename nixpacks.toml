@@ -1,0 +1,11 @@
+# Railway (Nixpacks): pakai `npm install` (bukan `npm ci`) di fase install.
+#
+# `npm ci` + package-lock.json yang di-generate di Windows kena bug npm
+# optional-dependencies (https://github.com/npm/cli/issues/4828): biner native
+# per-platform @tailwindcss/oxide-linux-x64-gnu tidak ikut terpasang di Linux,
+# sehingga `next build` gagal dengan "Cannot find native binding".
+# `npm install` me-resolve ulang optionalDependencies untuk platform Linux.
+# --include=dev memastikan devDependencies (next, tailwind, tsx, dll) tetap ada
+# walau build environment menyetel production.
+[phases.install]
+cmds = ['npm install --include=dev']
