@@ -59,6 +59,16 @@ export function adaDosis(vaksin: Record<string, string>, slotKode: string): bool
   return Boolean(vaksin[slotKode]);
 }
 
+/** Tanggal (YYYY-MM-DD) satu slot — memeriksa varian merek. "" bila belum. */
+export function tglDosis(vaksin: Record<string, string>, slotKode: string): string {
+  const varian = VARIAN_MEREK[slotKode];
+  if (varian) {
+    for (const v of varian) if (vaksin[v.kode]) return vaksin[v.kode];
+    return "";
+  }
+  return vaksin[slotKode] ?? "";
+}
+
 /** Merek DPT anak (dari dosis terisi) — Hexavalen mencakup IPV. */
 export function merekDpt(vaksin: Record<string, string>): "PENTAVALEN" | "HEXAVALEN" | null {
   if (vaksin.HEXA1 || vaksin.HEXA2 || vaksin.HEXA3) return "HEXAVALEN";

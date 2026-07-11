@@ -40,12 +40,20 @@ export default async function DaftarBayi({
             {daftar.length} dari {semua.length} anak · posyandu binaan Anda
           </p>
         </div>
-        <Link
-          href="/kader/anak-baru"
-          className="shrink-0 rounded-xl bg-[var(--coral)] px-3 py-2 text-xs font-bold text-white"
-        >
-          + Daftarkan
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          <a
+            href="/kader/export"
+            className="rounded-xl border-2 border-[var(--teal)] px-3 py-2 text-xs font-bold text-[var(--teal-tua)]"
+          >
+            ⬇ Export SIMPUS
+          </a>
+          <Link
+            href="/kader/anak-baru"
+            className="rounded-xl bg-[var(--coral)] px-3 py-2 text-xs font-bold text-white"
+          >
+            + Daftarkan
+          </Link>
+        </div>
       </div>
 
       <form className="mt-4 flex gap-2" action="/kader/daftar-bayi" method="get">
