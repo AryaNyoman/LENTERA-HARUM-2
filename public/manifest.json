@@ -1,0 +1,16 @@
+{
+  "name": "SIMPUS-POSYANDU — Kader & Orang Tua",
+  "short_name": "SIMPUS-POSYANDU",
+  "description": "Portal terpadu kader posyandu & orang tua — imunisasi dan tumbuh kembang anak. Puskesmas Cakranegara, Mataram, NTB.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F2F8F6",
+  "theme_color": "#2E9E8F",
+  "orientation": "portrait",
+  "lang": "id",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "categories": ["health", "medical"]
+}
