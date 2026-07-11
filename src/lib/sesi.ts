@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { randomBytes } from "crypto";
@@ -30,8 +31,9 @@ export async function buatSesi(userId: number): Promise<void> {
   });
 }
 
-/** User dari cookie sesi; null bila tak ada/kedaluwarsa/nonaktif. */
-export async function ambilUser(): Promise<UserSesi | null> {
+/** User dari cookie sesi; null bila tak ada/kedaluwarsa/nonaktif.
+ *  Dibungkus cache() — dipanggil layout & page dalam satu request tanpa query dobel. */
+export const ambilUser = cache(async (): Promise<UserSesi | null> => {
   const jar = await cookies();
   const token = jar.get(NAMA_COOKIE)?.value;
   if (!token) return null;
@@ -39,7 +41,7 @@ export async function ambilUser(): Promise<UserSesi | null> {
   if (!sesi || sesi.kedaluwarsa < new Date() || !sesi.user.aktif) return null;
   const u = sesi.user;
   return { id: u.id, peran: u.peran, nama: u.nama, username: u.username, perluGantiSandi: u.perluGantiSandi };
-}
+});
 
 /** Hapus sesi aktif (logout). */
 export async function hapusSesi(): Promise<void> {
