@@ -10,7 +10,7 @@
     "build": "next build",
     "build:railway": "node scripts/swap-provider.mjs postgresql && prisma generate && next build",
     "start": "next start",
-    "start:railway": "prisma db push --skip-generate && next start -p ${PORT:-3000}",
+    "start:railway": "node scripts/swap-provider.mjs postgresql && prisma db push --skip-generate && next start -p ${PORT:-3000}",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
