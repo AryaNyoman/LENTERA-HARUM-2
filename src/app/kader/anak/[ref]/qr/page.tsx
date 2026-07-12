@@ -1,7 +1,8 @@
-import Link from "next/link";
+/* eslint-disable @next/next/no-img-element */
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
+import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
 import { ambilAnak } from "@/lib/anak";
 import { db } from "@/lib/db";
@@ -42,60 +43,59 @@ export default async function QrKlaimPage({
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-5">
-      <Link href={`/kader/anak/${refA}`} className="text-xs font-bold text-[var(--teks-sekunder)]">
-        ← Detail anak
-      </Link>
-      <h1 className="font-judul mt-2 text-lg font-extrabold text-[var(--teal-tua)]">
-        Hubungkan ke Orang Tua
-      </h1>
-      <p className="mt-1 text-xs leading-relaxed text-[var(--teks-sekunder)]">
-        Anak: <b>{anak.isi.nama}</b>.
-      </p>
+    <main>
+      <KepalaHalaman judul="Hubungkan ke Orang Tua" sub={anak.isi.nama} balik={`/kader/anak/${refA}`} />
 
-      <div className="mt-4 space-y-2">
-        {[
-          { n: 1, t: "Minta orang tua buka Anakku → Hubungkan Anak" },
-          { n: 2, t: "Pindai QR di bawah dengan kamera HP" },
-          { n: 3, t: "Atau ketik kode 8 karakter secara manual" },
-        ].map((s) => (
-          <div key={s.n} className="flex items-center gap-3 rounded-xl border-2 border-[var(--coral-border)] bg-[var(--coral-muda)] px-3 py-2">
-            <span className="font-judul flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--coral)] text-xs font-bold text-white">
-              {s.n}
-            </span>
-            <span className="text-xs text-[var(--coral-gelap)]">{s.t}</span>
-          </div>
-        ))}
-      </div>
-
-      {kartu.length === 0 ? (
-        <p className="pop mt-4 rounded-[var(--r-kartu)] border-2 border-dashed border-[var(--garis-kader)] bg-[var(--kartu)] p-6 text-center text-sm text-[var(--teks-sekunder)]">
-          Belum ada kode aktif — buat dulu di bawah.
-        </p>
-      ) : (
-        kartu.map((k) => (
-          <div key={k.token} className="pop mt-4 rounded-[var(--r-kartu)] border-2 border-[var(--krem-border)] bg-[var(--kartu)] p-5 text-center">
-            <div className="mx-auto w-fit rounded-2xl border-2 border-dashed border-[var(--teal-pastel)] p-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={k.qr} alt={`QR kode klaim ${k.token}`} width={220} height={220} className="rounded-lg" />
+      <div className="mx-auto max-w-md px-4 pt-4">
+        <div className="pop flex gap-1.5">
+          {[
+            { n: 1, t: "Tunjukkan QR ke ortu" },
+            { n: 2, t: "Ortu pindai dgn kamera HP" },
+            { n: 3, t: "Anak terhubung 🎉" },
+          ].map((s) => (
+            <div key={s.n} className="flex-1 rounded-2xl border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-2 py-2.5 text-center">
+              <p className="font-judul text-base font-bold text-[var(--teal-gelap)]">{s.n}</p>
+              <p className="text-[10px] font-semibold leading-snug text-[var(--teks-sekunder)]">{s.t}</p>
             </div>
-            <p className="font-judul mt-3 text-2xl font-extrabold tracking-[0.3em] text-[var(--teal-tua)]">
-              {k.token}
-            </p>
-            <span className="stiker relative left-0 top-0 mt-2 inline-block" style={{ background: "var(--kuning-pastel)", color: "var(--kuning-teks)", transform: "none" }}>
-              kode sekali pakai · 7 hari
-            </span>
-            <p className="mt-1 text-[11px] text-[var(--teks-sekunder)]">
-              berlaku s.d. {fmtTglId(k.kedaluwarsa.toISOString().slice(0, 10))}
+          ))}
+        </div>
+
+        {kartu.length === 0 ? (
+          <div className="pop pop-1 mt-4 rounded-[26px] border-[2.5px] border-dashed border-[#cfe2da] p-6 text-center">
+            <p className="text-2xl">🔑</p>
+            <p className="mt-1.5 text-sm font-semibold text-[var(--teks-sekunder)]">
+              Belum ada kode aktif — buat dulu lewat tombol di bawah.
             </p>
           </div>
-        ))
-      )}
+        ) : (
+          kartu.map((k) => (
+            <div key={k.token} className="pop pop-1 relative mt-5 rounded-[26px] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-4 pb-5 pt-6 text-center">
+              <span
+                className="font-judul absolute -top-[11px] left-1/2 whitespace-nowrap rounded-full bg-[var(--teal)] px-3 py-1 text-[10.5px] font-bold text-white"
+                style={{ transform: "translateX(-50%) rotate(-1.5deg)" }}
+              >
+                kode sekali pakai · 7 hari
+              </span>
+              <div className="mx-auto mt-1 inline-block rounded-[20px] border-[2.5px] border-dashed border-[var(--teal-pastel)] bg-[#fbfdfc] p-3">
+                <img src={k.qr} alt={`QR kode klaim ${k.token}`} width={216} height={216} className="block rounded-[10px]" />
+              </div>
+              <p className="font-judul mt-3 text-3xl font-bold text-[var(--teal-gelap)]" style={{ letterSpacing: ".28em", textIndent: ".28em" }}>
+                {k.token}
+              </p>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-[var(--abu)]">
+                atau ketik kode ini di menu <b>Anakku → Hubungkan Anak</b>
+                <br />
+                berlaku s.d. <b>{fmtTglId(k.kedaluwarsa.toISOString().slice(0, 10))}</b>
+              </p>
+            </div>
+          ))
+        )}
 
-      <form action={buatTokenKlaim} className="mt-4">
-        <input type="hidden" name="ref" value={refA} />
-        <button className="btn3d btn3d-coral w-full py-3 text-sm">+ Buat kode baru</button>
-      </form>
+        <form action={buatTokenKlaim} className="mt-4">
+          <input type="hidden" name="ref" value={refA} />
+          <button className="btn3d btn3d-coral h-[52px] w-full text-[15px]">+ Buat kode baru</button>
+        </form>
+      </div>
     </main>
   );
 }

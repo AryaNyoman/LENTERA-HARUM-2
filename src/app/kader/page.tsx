@@ -1,15 +1,34 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
+import Kepala from "@/components/kepala";
 import { wajibUser } from "@/lib/sesi";
 import { db } from "@/lib/db";
-import { ambilAnakBinaan, hitungUsiaBulan, kelompokUsia } from "@/lib/anak";
+import { ambilAnakBinaan, binaanIds, hitungUsiaBulan, kelompokUsia } from "@/lib/anak";
 import { lengkap, SYARAT_IDL, SYARAT_IBL } from "@/lib/vaksin";
 
-function Kartu({ nilai, label, sub, warna }: { nilai: string | number; label: string; sub?: string; warna?: string }) {
+function KartuStat({
+  nilai, label, img, border, warna, stiker, delay,
+}: {
+  nilai: React.ReactNode; label: string; img: string; border: string; warna: string; stiker?: string; delay: string;
+}) {
   return (
-    <div className="pop rounded-[var(--r-kartu)] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] p-4">
-      <p className="font-judul text-[26px] font-extrabold leading-none" style={{ color: warna ?? "var(--teal-tua)" }}>{nilai}</p>
-      <p className="mt-1.5 text-xs font-bold">{label}</p>
-      {sub && <p className="text-[11px] text-[var(--teks-sekunder)]">{sub}</p>}
+    <div
+      className={`pop ${delay} relative rounded-[20px] border-2 bg-[var(--kartu)] p-3.5`}
+      style={{ borderColor: border }}
+    >
+      {stiker && (
+        <span
+          className="font-judul absolute -top-2.5 right-2.5 rounded-full px-2 py-0.5 text-[9.5px] font-bold text-white"
+          style={{ background: "var(--hijau)", transform: "rotate(2.5deg)" }}
+        >
+          {stiker}
+        </span>
+      )}
+      <div className="flex items-center justify-between gap-1">
+        <p className="font-judul text-[26px] font-bold leading-none" style={{ color: warna }}>{nilai}</p>
+        <img src={img} alt="" width={34} height={34} className="h-[34px] w-[34px] shrink-0 object-contain" />
+      </div>
+      <p className="mt-1 text-xs font-extrabold text-[var(--teks-3)]">{label}</p>
     </div>
   );
 }
@@ -18,83 +37,112 @@ export default async function DashboardKader() {
   const user = await wajibUser("KADER", "ADMIN");
   const anak = await ambilAnakBinaan(user);
   const cache = await db.cacheDashboard.findFirst({ orderBy: { sinkronPada: "desc" } });
+  const ids = await binaanIds(user);
+  const posyandu = await db.posyandu.findMany({
+    where: { id: { in: ids }, aktif: true },
+    include: { kelurahan: true },
+    orderBy: { id: "asc" },
+  });
 
   const now = new Date();
-  let bayi = 0, baduta = 0, lebih = 0, idl = 0, ibl = 0, draf = 0;
+  let bayi = 0, baduta = 0, idl = 0, ibl = 0, draf = 0;
   const perPosyandu = new Map<string, number>();
   for (const a of anak) {
     const u = kelompokUsia(hitungUsiaBulan(a.isi.tglLahir, now));
-    if (u === "0-11") bayi++; else if (u === "12-24") baduta++; else lebih++;
+    if (u === "0-11") bayi++; else if (u === "12-24") baduta++;
     if (lengkap(a.isi.vaksin, SYARAT_IDL)) idl++;
     if (lengkap(a.isi.vaksin, SYARAT_IBL)) ibl++;
     if (a.sumber === "BARU" && a.status === "DRAF") draf++;
     perPosyandu.set(a.posyanduLabel, (perPosyandu.get(a.posyanduLabel) ?? 0) + 1);
   }
 
+  const satu = posyandu.length === 1 ? posyandu[0] : null;
+  const judul = satu ? `Posyandu ${satu.namaPosyandu || satu.nama} 🌼` : "Dashboard Posyandu 🌼";
+  const sub = satu
+    ? `${satu.nama} · ${satu.kelurahan.nama}`
+    : `${posyandu.length} posyandu binaan`;
+
   return (
-    <main className="min-h-[calc(100dvh-56px)] bg-titik-kader pb-6">
+    <main className="pb-4">
       <div
-        className="relative px-4 pb-7 pt-5 text-white"
-        style={{ background: "linear-gradient(160deg,#26907f,#3aa895)", "--scallop": "#3aa895" } as React.CSSProperties}
+        className="px-4 pb-6 pt-3.5"
+        style={{ background: "linear-gradient(160deg,#26907f,#3aa895)" }}
       >
-        <div className="mx-auto max-w-3xl">
-          <h1 className="font-judul text-lg font-extrabold">Dashboard Posyandu</h1>
-          <p className="mt-0.5 text-xs text-white/90">
-            Statistik posyandu binaan · data lokal website{cache ? " + tarikan SIMPUS" : ""}
-          </p>
+        <div className="mx-auto max-w-md">
+          <Kepala user={user} />
+          <h1 className="font-judul pop mt-3.5 text-[22px] font-bold leading-tight text-white">{judul}</h1>
+          <p className="text-xs font-semibold text-white/85">{sub}</p>
         </div>
       </div>
       <div className="scallop" style={{ "--scallop": "#3aa895" } as React.CSSProperties} />
 
-      <div className="mx-auto -mt-1 max-w-3xl px-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Kartu nilai={anak.length} label="Total anak" sub="dalam binaan" />
-          <Kartu nilai={bayi} label="Bayi (0–11 bln)" />
-          <Kartu nilai={baduta} label="Baduta (12–24 bln)" />
-          <Kartu nilai={idl} label="IDL lengkap" sub="definisi 2026 (tanpa PCV/RV)" warna="var(--hijau-teks)" />
-          <Kartu nilai={ibl} label="IBL lengkap" sub="DPT + MR lanjutan" warna="var(--hijau-teks)" />
-          <Kartu nilai={draf} label="Belum diekspor" sub="anak baru → SIMPUS" warna={draf > 0 ? "var(--coral-gelap)" : undefined} />
+      <div className="mx-auto max-w-md px-4 pt-2.5">
+        <div className="grid grid-cols-2 gap-2.5">
+          <KartuStat nilai={anak.length} label="Total anak binaan" img="/gambar/bayi-duduk.png" border="var(--teal-pastel)" warna="var(--teal-gelap)" delay="pop-1" />
+          <KartuStat nilai={bayi} label="Bayi 0–11 bulan" img="/gambar/bayi-baru-lahir.png" border="var(--teal-pastel)" warna="var(--teal-gelap)" delay="pop-2" />
+          <KartuStat nilai={baduta} label="Baduta 12–24 bln" img="/gambar/baduta-jalan.png" border="var(--kuning-pastel)" warna="#a16207" delay="pop-3" />
+          <KartuStat
+            nilai={<>{idl}<span className="text-sm font-bold text-[var(--abu)]"> IDL</span> · {ibl}<span className="text-sm font-bold text-[var(--abu)]"> IBL</span></>}
+            label="IDL & IBL lengkap" img="/gambar/vaksin-vial.png"
+            border="var(--hijau-border)" warna="var(--hijau-teks)" stiker="target!" delay="pop-4"
+          />
+        </div>
+
+        {draf > 0 && (
+          <div className="pop pop-5 mt-3 flex items-center gap-3 rounded-[22px] border-2 border-[var(--coral-border)] bg-[var(--kartu)] px-4 py-3.5">
+            <img src="/gambar/petugas-kesehatan.png" alt="" width={52} height={52} className="h-[52px] w-[52px] shrink-0 object-contain" />
+            <div className="min-w-0 flex-1">
+              <p className="font-judul text-sm font-bold text-[var(--coral-gelap)]">
+                {draf} anak baru siap disetor 📦
+              </p>
+              <p className="text-[11px] font-semibold leading-snug text-[var(--teks-sekunder)]">
+                Export Excel, lalu serahkan ke petugas SIMPUS ya!
+              </p>
+            </div>
+            <a href="/kader/export" className="btn3d btn3d-coral flex h-10 shrink-0 items-center rounded-[14px] px-3.5 text-[13px]" style={{ boxShadow: "0 4px 0 var(--coral-tua)" }}>
+              Export
+            </a>
+          </div>
+        )}
+
+        <div className="pop pop-6 mt-2.5 flex items-center gap-2.5 rounded-[18px] bg-[var(--teal-muda)] px-3.5 py-2.5">
+          <span className="text-base">☁️</span>
+          <p className="text-[11px] font-semibold leading-relaxed text-[var(--teal-tua)]">
+            {cache ? (
+              <>Data statistik SIMPUS terakhir ditarik: <b>{cache.sinkronPada.toLocaleString("id-ID")}</b>. Tarikan dilakukan petugas puskesmas.</>
+            ) : (
+              <>Data SIMPUS belum ditarik — angka dihitung dari catatan website ini dulu. Tarikan dilakukan petugas puskesmas.</>
+            )}
+          </p>
         </div>
 
         {perPosyandu.size > 1 && (
-          <section className="mt-6">
-            <h2 className="font-judul text-sm font-extrabold">Per posyandu</h2>
+          <section className="mt-4">
+            <h2 className="font-judul text-sm font-bold text-[var(--teal-gelap)]">Per posyandu</h2>
             <div className="mt-2 space-y-1.5">
               {[...perPosyandu.entries()].map(([nama, n]) => (
-                <div key={nama} className="flex items-center justify-between rounded-xl border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-4 py-2.5 text-sm">
+                <div key={nama} className="flex items-center justify-between rounded-2xl border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-4 py-2.5 text-sm">
                   <span className="font-semibold">{nama}</span>
-                  <span className="font-judul font-extrabold text-[var(--teal-tua)]">{n} anak</span>
+                  <span className="font-judul font-bold text-[var(--teal-gelap)]">{n} anak</span>
                 </div>
               ))}
             </div>
           </section>
         )}
 
-        <section className="pop pop-1 mt-6 flex items-start gap-3 rounded-[var(--r-kartu)] border-2 border-[var(--coral-border)] bg-[var(--coral-muda)] p-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/gambar/petugas-kesehatan.png" alt="" width={40} height={40} className="shrink-0" />
-          <p className="text-xs leading-relaxed text-[var(--coral-gelap)]">
-            {cache ? (
-              <>Data statistik SIMPUS terakhir ditarik: <b>{cache.sinkronPada.toLocaleString("id-ID")}</b>.</>
-            ) : (
-              <>
-                <b>Data SIMPUS belum ditarik</b> — angka dihitung dari catatan website ini dulu.
-                Tarikan dilakukan petugas puskesmas.
-              </>
-            )}
-          </p>
-        </section>
-
-        <div className="pop pop-2 mt-6 flex gap-2">
-          <Link href="/kader/daftar-bayi" className="btn3d btn3d-teal flex-1 py-3 text-center text-sm">
-            Buka Daftar Bayi
+        <div className="mt-3 flex gap-2.5">
+          <Link
+            href="/kader/daftar-bayi"
+            className="btn3d btn3d-teal flex h-[50px] flex-1 items-center justify-center text-[15px]"
+          >
+            Daftar Bayi
           </Link>
           <Link
             href="/kader/anak-baru"
-            className="btn-garis flex-1 border-2 py-3 text-center text-sm text-[var(--coral-gelap)]"
-            style={{ borderColor: "var(--coral)" }}
+            className="btn-garis flex h-[50px] flex-1 items-center justify-center border-2 text-[15px]"
+            style={{ borderColor: "var(--coral)", color: "#d95f38", boxShadow: "0 5px 0 var(--coral-border)" }}
           >
-            + Daftarkan Anak
+            + Anak Baru
           </Link>
         </div>
       </div>

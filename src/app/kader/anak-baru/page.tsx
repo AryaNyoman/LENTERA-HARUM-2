@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
 import { db } from "@/lib/db";
 import { binaanIds } from "@/lib/anak";
@@ -31,26 +31,24 @@ export default async function AnakBaruPage({
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-5">
-      <Link
-        href={idEdit ? `/kader/anak/b:${idEdit}` : "/kader/daftar-bayi"}
-        className="text-xs font-bold text-[var(--teks-sekunder)]"
-      >
-        ← Kembali
-      </Link>
-      <h1 className="font-judul mt-2 mb-4 text-lg font-extrabold text-[var(--teal-tua)]">
-        {idEdit ? "Edit Anak" : "Daftarkan Anak Baru"}
-      </h1>
-      <FormAnak
-        posyandu={posyandu.map((p) => ({
-          id: p.id,
-          label: p.namaPosyandu ? `${p.nama} (${p.namaPosyandu})` : p.nama,
-          kelurahan: p.kelurahan.nama,
-        }))}
-        idEdit={idEdit}
-        awal={awal ?? undefined}
-        galat={galat}
+    <main>
+      <KepalaHalaman
+        judul={idEdit ? "Edit Anak ✎" : "Daftarkan Anak Baru ✨"}
+        sub="isi pelan-pelan, bisa diedit lagi kok"
+        balik={idEdit ? `/kader/anak/b:${idEdit}` : "/kader/daftar-bayi"}
       />
+      <div className="mx-auto max-w-md px-4 pt-3.5">
+        <FormAnak
+          posyandu={posyandu.map((p) => ({
+            id: p.id,
+            label: p.namaPosyandu ? `${p.nama} (${p.namaPosyandu})` : p.nama,
+            kelurahan: p.kelurahan.nama,
+          }))}
+          idEdit={idEdit}
+          awal={awal ?? undefined}
+          galat={galat}
+        />
+      </div>
     </main>
   );
 }

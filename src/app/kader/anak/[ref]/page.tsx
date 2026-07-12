@@ -1,5 +1,7 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
 import { ambilAnak, hitungUsiaBulan, labelUsia, fmtTglId } from "@/lib/anak";
 import {
@@ -21,11 +23,22 @@ function isiSlot(vaksin: Record<string, string>, kode: string): { tgl: string; m
 }
 
 function emojiUsia(um: number): string {
-  if (um === 0) return "👶";
-  if (um <= 4) return "🍼";
-  if (um <= 12) return "🩹";
-  return "💉";
+  if (um === 0) return "👼";
+  if (um === 1) return "🍼";
+  if (um <= 4) return "🧸";
+  return "🚶";
 }
+
+/** Alasan slot tak berlaku (presentasi; aturan medis dari lib). */
+function alasanTakBerlaku(kode: string): string {
+  return kode === "ROTA3" ? "Rotarix cukup 2" : "Hexa sudah mencakup";
+}
+
+const CEK_HIJAU = (
+  <span className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full bg-[var(--hijau)]">
+    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+  </span>
+);
 
 export default async function DetailAnak({
   params,
@@ -48,6 +61,9 @@ export default async function DetailAnak({
   const menunggu = centang.filter((c) => !c.verified);
   const belumVerifOrtu = anak.olehOrtu && !anak.terverifikasi;
 
+  const relevan = DOSIS_REGISTRY.filter((d) => !dosisTakBerlaku(d.kode, anak.isi.vaksin));
+  const nSudah = relevan.filter((d) => adaDosis(anak.isi.vaksin, d.kode)).length;
+
   // kelompokkan slot per umur ideal
   const grup = new Map<number, typeof DOSIS_REGISTRY>();
   for (const d of DOSIS_REGISTRY) {
@@ -55,201 +71,269 @@ export default async function DetailAnak({
     grup.set(um, [...(grup.get(um) ?? []), d]);
   }
 
+  const borderAvatar = belumVerifOrtu ? "var(--verif)" : anak.isi.jk === "P" ? "var(--coral)" : "var(--teal)";
+
   return (
-    <main className="mx-auto max-w-3xl px-4 py-5">
-      <Link href="/kader/daftar-bayi" className="text-xs font-bold text-[var(--teks-sekunder)]">
-        ← Daftar Bayi
-      </Link>
-      {galat && (
-        <p className="mt-3 rounded-lg bg-[var(--merah-muda)] px-3 py-2 text-xs font-semibold text-[var(--merah-teks)]">{galat}</p>
-      )}
+    <main>
+      <KepalaHalaman judul="Detail Anak" sub="dari Daftar Bayi" balik="/kader/daftar-bayi" />
 
-      <section
-        className="relative mt-3 rounded-[var(--r-kartu)] border-2 border-[var(--teal-pastel)] p-4"
-        style={{ background: "linear-gradient(135deg,var(--teal-muda),#fff)", marginTop: belumVerifOrtu ? "22px" : "12px" }}
-      >
-        {belumVerifOrtu && (
-          <span
-            className="stiker"
-            style={{ left: "16px", top: "-14px", background: "var(--verif)", color: "var(--verif-pekat)" }}
-          >
-            🟡 diisi ortu
-          </span>
+      <div className="mx-auto max-w-md px-4 pt-3.5">
+        {galat && (
+          <p className="mb-3 rounded-xl bg-[var(--merah-muda)] px-3 py-2 text-xs font-bold text-[var(--merah-teks)]">{galat}</p>
         )}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="font-judul text-lg font-extrabold">{anak.isi.nama}</h1>
-            <p className="mt-0.5 text-xs text-[var(--teks-sekunder)]">
-              {anak.isi.jk === "P" ? "Perempuan" : "Laki-laki"} · lahir {fmtTglId(anak.isi.tglLahir)} ·{" "}
-              {labelUsia(usia)}
-            </p>
-            <p className="mt-0.5 text-xs text-[var(--teks-sekunder)]">
-              {anak.posyanduLabel} — {anak.kelurahan}
-              {anak.isi.namaOrtu && <> · ortu: {anak.isi.namaOrtu}</>}
-              {anak.isi.noHp && <> · {anak.isi.noHp}</>}
-            </p>
-            {anak.isi.nik && (
-              <p className="mt-0.5 text-xs text-[var(--teks-sekunder)]">NIK: {anak.isi.nik}</p>
-            )}
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            {idl && <span className="rounded bg-[var(--hijau-muda)] px-2 py-0.5 text-[11px] font-bold text-[var(--hijau-teks)]">IDL ✓</span>}
-            {ibl && <span className="rounded bg-[var(--hijau-muda)] px-2 py-0.5 text-[11px] font-bold text-[var(--hijau-teks)]">IBL ✓</span>}
-            <span
-              className="rounded px-2 py-0.5 text-[11px] font-bold"
-              style={{
-                background: anak.sumber === "SIMPUS" ? "var(--bg)" : "var(--coral-muda)",
-                color: anak.sumber === "SIMPUS" ? "var(--teks-sekunder)" : "var(--coral-gelap)",
-              }}
-            >
-              {anak.sumber === "SIMPUS" ? "Data SIMPUS" : anak.status === "DRAF" ? "BARU — belum ekspor" : "BARU — diekspor"}
-            </span>
-            {anak.olehOrtu && anak.terverifikasi && (
-              <span className="rounded-full border-[1.5px] px-2 py-0.5 text-[11px] font-bold" style={{ background: "var(--teal-muda)", color: "var(--teal-tua)", borderColor: "var(--teal-pastel)" }}>
-                diisi ortu ✓
-              </span>
-            )}
-          </div>
-        </div>
 
-        {anak.sumber === "BARU" ? (
-          <>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link href={`/kader/anak-baru?ref=b:${anak.id}`} className="btn3d btn3d-teal px-4 py-2 text-xs">
-              ✎ Edit data &amp; dosis
-            </Link>
-            <Link
-              href={`/kader/anak/${anak.ref}/qr`}
-              className="btn-garis border-2 px-4 py-2 text-xs text-[var(--coral-gelap)]"
-              style={{ borderColor: "var(--coral)" }}
+        <section
+          className="pop overflow-hidden rounded-3xl border-2 bg-[var(--kartu)]"
+          style={{ borderColor: belumVerifOrtu ? "var(--verif-garis)" : "var(--garis-kader)" }}
+        >
+          <div
+            className="relative flex items-center gap-3 p-4"
+            style={{ background: belumVerifOrtu ? "linear-gradient(135deg,#fdf9ec,#fdf6de)" : "linear-gradient(135deg,#e9f6f2,#def0ea)" }}
+          >
+            <span className="absolute right-3 top-2.5 flex gap-1.5">
+              {anak.olehOrtu && (
+                <span
+                  className="font-judul rounded-full px-2 py-0.5 text-[9.5px] font-bold"
+                  style={
+                    anak.terverifikasi
+                      ? { background: "var(--teal-muda)", color: "var(--teal-gelap)", border: "1.5px solid var(--teal-pastel)", transform: "rotate(-1.5deg)" }
+                      : { background: "var(--verif)", color: "var(--verif-pekat)", transform: "rotate(2deg)" }
+                  }
+                >
+                  {anak.terverifikasi ? "diisi ortu ✓" : "diisi ortu"}
+                </span>
+              )}
+              {anak.sumber === "BARU" ? (
+                <span
+                  className="font-judul rounded-full px-2 py-0.5 text-[9.5px] font-bold text-white"
+                  style={{ background: anak.status === "DRAF" ? "var(--coral)" : "var(--teal)", transform: "rotate(2deg)" }}
+                >
+                  {anak.status === "DRAF" ? "belum disetor" : "sudah disetor"}
+                </span>
+              ) : (
+                <span className="font-judul rounded-full bg-white/80 px-2 py-0.5 text-[9.5px] font-bold text-[var(--teks-sekunder)]" style={{ transform: "rotate(2deg)" }}>
+                  data SIMPUS
+                </span>
+              )}
+            </span>
+            <div
+              className="flex h-[62px] w-[62px] shrink-0 items-center justify-center rounded-full bg-white"
+              style={{ border: `3px solid ${borderAvatar}` }}
             >
-              🔗 QR Orang Tua
-            </Link>
-            {anak.status === "DRAF" && (
-              <form action={hapusAnakBaru}>
-                <input type="hidden" name="id" value={anak.id} />
-                <button className="btn-garis border-2 border-[var(--merah)] px-4 py-2 text-xs text-[var(--merah-teks)]">
-                  Hapus
-                </button>
-              </form>
-            )}
-          </div>
-          {belumVerifOrtu && (
-            <div className="pop mt-3 rounded-2xl border-2 p-3" style={{ borderColor: "var(--verif-garis)", background: "var(--verif-muda)" }}>
-              <p className="font-judul text-xs font-bold" style={{ color: "var(--verif-pekat)" }}>🟡 Diisi orang tua — belum diverifikasi</p>
-              <p className="mt-1 text-[11px] leading-relaxed text-[var(--teks-sekunder)]">
-                Anak ini didaftarkan sendiri oleh orang tua. Periksa datanya (cocokkan buku KIA,
-                hindari duplikat dengan anak yang sudah ada). Setelah diverifikasi, anak bisa ikut Export SIMPUS.
+              <img src={anak.isi.jk === "P" ? "/gambar/anak-perempuan.png" : "/gambar/anak-laki.png"} alt="" width={48} height={48} className="h-12 w-12 object-contain" />
+            </div>
+            <div className="min-w-0 flex-1 pt-2">
+              <p className="font-judul text-lg font-bold leading-tight">{anak.isi.nama}</p>
+              <p className="mt-0.5 text-[11px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
+                {anak.isi.jk === "P" ? "Perempuan" : "Laki-laki"} · lahir {fmtTglId(anak.isi.tglLahir)} ·{" "}
+                <b style={{ color: belumVerifOrtu ? "var(--verif-teks)" : "var(--teal-gelap)" }}>{labelUsia(usia)}</b>
+                <br />
+                {anak.posyanduLabel} · {anak.kelurahan}
+                {anak.isi.namaOrtu && <> · ortu: {anak.isi.namaOrtu}</>}
+                {anak.isi.noHp && <> · {anak.isi.noHp}</>}
+                {anak.isi.nik && <> · NIK {anak.isi.nik}</>}
               </p>
-              <form action={verifikasiAnak} className="mt-2">
-                <input type="hidden" name="id" value={anak.id} />
-                <button className="btn3d btn3d-teal px-4 py-2 text-xs">✓ Verifikasi anak ini</button>
-              </form>
+              {(idl || ibl) && (
+                <p className="mt-1 flex gap-1">
+                  {idl && <span className="rounded-md bg-[var(--hijau-muda)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--hijau-teks)]">IDL ✓</span>}
+                  {ibl && <span className="rounded-md bg-[var(--hijau-muda)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--hijau-teks)]">IBL ✓</span>}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {anak.sumber === "BARU" ? (
+            <div className="flex gap-2 p-3">
+              <Link href={`/kader/anak-baru?ref=b:${anak.id}`} className="btn3d btn3d-teal flex h-[42px] flex-1 items-center justify-center rounded-[13px] text-[12.5px]" style={{ boxShadow: "0 4px 0 var(--teal-tua)" }}>
+                ✎ Edit data
+              </Link>
+              <Link
+                href={`/kader/anak/${anak.ref}/qr`}
+                className="btn-garis flex h-[42px] flex-1 items-center justify-center border-2 text-[12.5px]"
+                style={{ borderColor: "var(--coral)", color: "#d95f38", borderRadius: "13px" }}
+              >
+                QR Orang Tua
+              </Link>
+              {anak.status === "DRAF" && (
+                <form action={hapusAnakBaru}>
+                  <input type="hidden" name="id" value={anak.id} />
+                  <button
+                    aria-label="Hapus anak"
+                    title="Hapus"
+                    className="btn-garis flex h-[42px] w-[42px] items-center justify-center border-2 border-[var(--merah-border)] text-[var(--merah)]"
+                    style={{ borderRadius: "13px" }}
+                  >
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" /></svg>
+                  </button>
+                </form>
+              )}
+            </div>
+          ) : (
+            <div className="p-3">
+              <Link
+                href={`/kader/anak/${anak.ref}/qr`}
+                className="btn-garis flex h-[42px] items-center justify-center border-2 text-[12.5px]"
+                style={{ borderColor: "var(--coral)", color: "#d95f38", borderRadius: "13px" }}
+              >
+                QR Orang Tua
+              </Link>
+              <p className="mt-2 rounded-xl bg-[var(--teal-muda)] px-3 py-2 text-[11px] font-semibold leading-relaxed text-[var(--teal-tua)]">
+                Salinan dari SIMPUS (baca-saja). Perubahan dosis resmi dicatat lewat SIMPUS petugas.
+              </p>
             </div>
           )}
-          </>
-        ) : (
-          <div className="mt-3">
-            <Link
-              href={`/kader/anak/${anak.ref}/qr`}
-              className="btn-garis inline-block border-2 px-4 py-2 text-xs text-[var(--coral-gelap)]"
-              style={{ borderColor: "var(--coral)" }}
-            >
-              🔗 QR Orang Tua
-            </Link>
-            <p className="mt-2 rounded-lg bg-[var(--teal-muda)] px-3 py-2 text-[11px] leading-relaxed text-[var(--teal-tua)]">
-              Salinan dari SIMPUS (baca-saja). Perubahan dosis resmi dicatat lewat SIMPUS petugas.
-            </p>
-          </div>
-        )}
-      </section>
+        </section>
 
-      <section className="mt-4">
-        <h2 className="font-judul text-sm font-extrabold">Riwayat Imunisasi</h2>
-        <div className="mt-2 space-y-3">
-          {[...grup.entries()].map(([um, daftar]) => (
-            <div key={um} className="rounded-2xl border-2 border-[var(--garis-kader)] bg-[var(--kartu)] p-3">
-              <p className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--teal-tua)]">
-                {emojiUsia(um)} {um === 0 ? "Lahir" : `${um} bulan`}
-              </p>
-              <div className="mt-1.5 space-y-1">
-                {daftar.map((d) => {
-                  const takBerlaku = dosisTakBerlaku(d.kode, anak.isi.vaksin);
-                  const slot = isiSlot(anak.isi.vaksin, d.kode);
-                  const sudah = adaDosis(anak.isi.vaksin, d.kode);
-                  const c = !sudah ? centangMap.get(d.kode) : undefined;
-                  return (
-                    <div key={d.kode} className="flex items-center justify-between gap-2 text-sm">
-                      <span className={takBerlaku ? "text-[var(--teks-sekunder)] line-through opacity-60" : ""}>
-                        {sudah ? "✅" : c ? (c.verified ? "🔵" : "🟡") : takBerlaku ? "➖" : "⬜"} {d.nama}
-                        {slot?.merek && (
-                          <span className="ml-1 rounded bg-[var(--bg)] px-1 py-0.5 text-[10px] font-bold text-[var(--teks-sekunder)]">
-                            {slot.merek}
-                          </span>
-                        )}
-                        {c && (
-                          <span className="ml-1 rounded px-1 py-0.5 text-[10px] font-bold"
-                            style={{ background: c.verified ? "var(--teal-muda)" : "var(--verif-muda)", color: c.verified ? "var(--teal-tua)" : "var(--verif-teks)" }}>
-                            {c.verified ? "verifikasi kader" : "centang ortu"}
-                          </span>
-                        )}
-                      </span>
-                      <span className="shrink-0 text-xs text-[var(--teks-sekunder)]">
-                        {takBerlaku ? "tak berlaku" : slot ? fmtTglId(slot.tgl) : c ? fmtTglId(c.tgl) : "belum"}
-                      </span>
-                    </div>
-                  );
-                })}
+        {belumVerifOrtu && (
+          <section className="pop pop-1 relative mt-5 rounded-[22px] border-2 p-4" style={{ borderColor: "var(--verif-garis)", background: "var(--verif-muda)" }}>
+            <span
+              className="font-judul absolute -top-[11px] left-3.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+              style={{ background: "var(--verif)", color: "var(--verif-pekat)", transform: "rotate(-1.5deg)", animation: "wiggle 2.4s ease-in-out infinite" }}
+            >
+              perlu dicek!
+            </span>
+            <div className="mt-0.5 flex gap-2.5">
+              <span className="shrink-0 text-[22px]">🟡</span>
+              <div className="min-w-0 flex-1">
+                <p className="font-judul text-[14.5px] font-bold" style={{ color: "var(--verif-teks)" }}>
+                  Diisi orang tua — belum diverifikasi
+                </p>
+                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
+                  Anak ini didaftarkan sendiri oleh <b>{anak.isi.namaOrtu || "orang tuanya"}</b>. Cocokkan dengan{" "}
+                  <b>buku KIA</b> &amp; pastikan tidak duplikat dengan anak yang sudah ada. Setelah diverifikasi,
+                  anak ikut Export SIMPUS.
+                </p>
               </div>
+            </div>
+            <div className="mt-2.5 flex items-center gap-2">
+              <form action={verifikasiAnak} className="flex-1">
+                <input type="hidden" name="id" value={anak.id} />
+                <button className="btn3d btn3d-teal h-[46px] w-full rounded-[14px] text-sm">✓ Verifikasi anak ini</button>
+              </form>
+              <span className="max-w-[110px] shrink-0 text-[10px] font-semibold leading-snug" style={{ color: "var(--verif-teks)" }}>
+                data cocok?<br />satu ketukan selesai
+              </span>
+            </div>
+          </section>
+        )}
+
+        <div className="mt-4 flex items-center gap-2">
+          <h2 className="font-judul text-base font-bold text-[var(--teal-gelap)]">Riwayat Imunisasi 💉</h2>
+          <span className="font-judul rounded-full bg-[var(--teal-muda)] px-2 py-0.5 text-[10px] font-bold text-[var(--teal-gelap)]">
+            {nSudah} dari {relevan.length} dosis
+          </span>
+        </div>
+        <div className="mt-2 flex flex-col gap-2">
+          {[...grup.entries()].map(([um, daftar], gi) => (
+            <div key={um} className={`pop pop-${Math.min(gi + 1, 6)} rounded-[20px] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-3.5 py-3`}>
+              <p className="font-judul mb-1.5 text-xs font-bold text-[var(--abu)]">
+                {emojiUsia(um)} {um === 0 ? "LAHIR" : `${um} BULAN`}
+              </p>
+              {daftar.map((d) => {
+                const takBerlaku = dosisTakBerlaku(d.kode, anak.isi.vaksin);
+                const slot = isiSlot(anak.isi.vaksin, d.kode);
+                const sudahD = adaDosis(anak.isi.vaksin, d.kode);
+                const c = !sudahD ? centangMap.get(d.kode) : undefined;
+                return (
+                  <div key={d.kode} className="flex items-center gap-2 py-[3px]">
+                    {sudahD ? (
+                      CEK_HIJAU
+                    ) : c ? (
+                      <span
+                        className="font-judul flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-xs font-extrabold"
+                        style={c.verified ? { background: "var(--teal)", color: "#fff" } : { background: "var(--verif)", color: "var(--verif-pekat)" }}
+                      >
+                        !
+                      </span>
+                    ) : takBerlaku ? (
+                      <span className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full bg-[#edf1ef]">
+                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#a9b6b2" strokeWidth="3" strokeLinecap="round"><path d="M5 12h14" /></svg>
+                      </span>
+                    ) : (
+                      <span className="h-[19px] w-[19px] shrink-0 rounded-full border-2 border-dashed border-[#c3d5cf]" style={{ boxSizing: "border-box" }} />
+                    )}
+                    <span className={`min-w-0 flex-1 text-[13px] ${sudahD ? "font-bold" : "font-semibold"} ${takBerlaku ? "text-[#a9b6b2] line-through" : sudahD ? "" : "text-[var(--teks-3)]"}`}>
+                      {d.nama}
+                      {slot?.merek && (
+                        <span className="font-judul ml-1.5 rounded-md bg-[var(--teal-muda)] px-1.5 py-0.5 text-[9.5px] font-bold text-[var(--teal-gelap)] no-underline">
+                          {slot.merek}
+                        </span>
+                      )}
+                      {c && (
+                        <span
+                          className="font-judul ml-1.5 rounded-md px-1.5 py-0.5 text-[9.5px] font-bold"
+                          style={c.verified ? { background: "var(--teal-muda)", color: "var(--teal-gelap)" } : { background: "var(--verif-muda)", color: "var(--verif-teks)" }}
+                        >
+                          {c.verified ? "verifikasi kader" : "centang ortu"}
+                        </span>
+                      )}
+                    </span>
+                    {takBerlaku ? (
+                      <span className="font-judul shrink-0 rounded-md bg-[#f0f4f2] px-1.5 py-0.5 text-[10px] font-bold text-[var(--abu)]">
+                        {alasanTakBerlaku(d.kode)}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-[11px] font-semibold" style={{ color: sudahD || c ? "var(--abu)" : "#c0ccc8" }}>
+                        {slot ? fmtTglId(slot.tgl) : c ? fmtTglId(c.tgl) : "belum"}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-[var(--teks-sekunder)]">
-          ➖ = dosis tak berlaku untuk anak ini (Rotarix cukup 2 dosis; Hexavalen sudah mengandung
-          IPV). PCV &amp; Rotavirus tetap dicatat namun tidak dihitung ke IDL (definisi 2026).
+        <p className="mt-2 text-[10.5px] font-semibold leading-relaxed text-[var(--abu)]">
+          PCV &amp; Rotavirus tetap dicatat namun tidak dihitung ke IDL (definisi 2026).
         </p>
-      </section>
 
-      {menunggu.length > 0 && (
-        <section className="pop mt-4 rounded-2xl border-2 p-4" style={{ borderColor: "var(--verif-garis)", background: "var(--kartu)" }}>
-          <h2 className="font-judul flex items-center gap-1.5 text-sm font-extrabold" style={{ color: "var(--verif-teks)" }}>
-            <span style={{ display: "inline-block", animation: "wiggle 2s ease-in-out infinite" }}>🟡</span>
-            Centang Orang Tua — menunggu verifikasi ({menunggu.length})
-          </h2>
-          <p className="mt-1 text-[11px] text-[var(--teks-sekunder)]">
-            Orang tua menandai dosis ini diberikan di faskes lain. Verifikasi bila sesuai bukti
-            (buku KIA/kartu), tolak bila tidak.
-          </p>
-          <div className="mt-2 space-y-2">
-            {menunggu.map((c) => (
-              <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl bg-[var(--bg)] px-3 py-2 text-sm">
-                <span>
-                  <b>{c.vaksinKode}</b> · {fmtTglId(c.tgl)}
-                  {c.lokasi && <span className="text-[var(--teks-sekunder)]"> · {c.lokasi}</span>}
-                </span>
-                <span className="flex shrink-0 gap-1.5">
+        {menunggu.length > 0 && (
+          <section className="pop relative mt-5 rounded-[22px] border-2 bg-[var(--kartu)] p-4" style={{ borderColor: "var(--verif-garis)" }}>
+            <span
+              className="font-judul absolute -top-[11px] left-3.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+              style={{ background: "var(--verif)", color: "var(--verif-pekat)", transform: "rotate(-1.5deg)", animation: "wiggle 2.4s ease-in-out infinite" }}
+            >
+              perlu dicek!
+            </span>
+            <p className="font-judul mt-1 text-sm font-bold" style={{ color: "var(--verif-teks)" }}>
+              Centang orang tua — menunggu verifikasi ({menunggu.length})
+            </p>
+            <p className="mt-0.5 text-[10.5px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
+              Ortu menandai dosis ini diberikan di faskes lain. Cocokkan dengan buku KIA/kartu, lalu verifikasi atau tolak.
+            </p>
+            <div className="mt-2 space-y-2">
+              {menunggu.map((c) => (
+                <div key={c.id} className="flex flex-wrap items-center gap-2.5 rounded-2xl px-3 py-2.5" style={{ background: "var(--verif-muda)" }}>
+                  <p className="min-w-[130px] flex-1 text-[12.5px] font-bold" style={{ color: "var(--verif-pekat)" }}>
+                    {c.vaksinKode} · {fmtTglId(c.tgl)}
+                    {c.lokasi && (
+                      <span className="block text-[10.5px] font-semibold" style={{ color: "var(--verif-teks)" }}>
+                        di {c.lokasi}
+                      </span>
+                    )}
+                  </p>
                   <form action={verifikasiCentang}>
                     <input type="hidden" name="id" value={c.id} />
                     <input type="hidden" name="aksi" value="terima" />
-                    <button className="rounded-lg bg-[var(--teal)] px-3 py-1.5 text-[11px] font-bold text-white">
+                    <button className="btn3d btn3d-teal h-[38px] rounded-xl px-3.5 text-xs" style={{ boxShadow: "0 3px 0 var(--teal-tua)" }}>
                       ✓ Verifikasi
                     </button>
                   </form>
                   <form action={verifikasiCentang}>
                     <input type="hidden" name="id" value={c.id} />
                     <input type="hidden" name="aksi" value="tolak" />
-                    <button className="rounded-lg border border-[var(--merah)] px-3 py-1.5 text-[11px] font-bold text-[var(--merah-teks)]">
+                    <button className="btn-garis h-[38px] rounded-xl border-2 border-[var(--merah-border)] px-3.5 text-xs text-[var(--merah)]">
                       Tolak
                     </button>
                   </form>
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
-      <TumbuhBagian refAnak={anak.ref} jk={anak.isi.jk} balik={`/kader/anak/${anak.ref}`} />
+        <TumbuhBagian refAnak={anak.ref} jk={anak.isi.jk} balik={`/kader/anak/${anak.ref}`} />
+      </div>
     </main>
   );
 }
