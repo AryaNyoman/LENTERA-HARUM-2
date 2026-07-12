@@ -16,16 +16,21 @@ export default async function Anakku() {
           <h1 className="text-lg font-extrabold text-[var(--teal-tua)]">Anakku</h1>
           <p className="text-xs text-[var(--teks-sekunder)]">{daftar.length} anak terhubung</p>
         </div>
-        <Link href="/ortu/klaim" className="shrink-0 rounded-xl bg-[var(--coral)] px-3 py-2 text-xs font-bold text-white">
-          + Hubungkan Anak
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          <Link href="/ortu/anak-baru" className="rounded-xl bg-[var(--coral)] px-3 py-2 text-xs font-bold text-white">
+            + Tambah anak
+          </Link>
+          <Link href="/ortu/klaim" className="rounded-xl border border-[var(--coral)] px-3 py-2 text-xs font-bold text-[var(--coral)]">
+            Hubungkan (QR)
+          </Link>
+        </div>
       </div>
 
       <div className="mt-4 space-y-3">
         {daftar.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[var(--garis)] bg-[var(--kartu)] p-6 text-center text-sm text-[var(--teks-sekunder)]">
-            Belum ada anak. Minta <b>kode QR</b> ke kader posyandu, lalu tekan{" "}
-            <b>+ Hubungkan Anak</b>.
+            Belum ada anak. Tekan <b>+ Tambah anak</b> untuk mengisi sendiri, atau{" "}
+            <b>Hubungkan (QR)</b> dengan kode dari kader posyandu.
           </div>
         )}
         {daftar.map((a) => {

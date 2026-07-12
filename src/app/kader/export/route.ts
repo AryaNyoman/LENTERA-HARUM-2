@@ -15,7 +15,13 @@ export async function GET(req: Request): Promise<Response> {
 
   const ids = await binaanIds(user);
   const rows = await db.anakBaru.findMany({
-    where: { posyanduId: { in: ids }, status: { in: ["DRAF", "DIEKSPOR"] } },
+    // Anak yang diinput orang tua & BELUM diverifikasi kader tidak ikut export
+    // (cegah duplikat/data mentah masuk SIMPUS sebelum diperiksa).
+    where: {
+      posyanduId: { in: ids },
+      status: { in: ["DRAF", "DIEKSPOR"] },
+      NOT: { olehOrtu: true, terverifikasi: false },
+    },
     include: { posyandu: true },
     orderBy: { id: "asc" },
   });

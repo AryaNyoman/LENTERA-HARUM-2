@@ -17,12 +17,9 @@ function galatKe(url: string, pesan: string): never {
   redirect(`${url}?galat=${encodeURIComponent(pesan)}`);
 }
 
-/** Simpan (buat/edit) anak baru dari form kader. Dosis: input name "vaksin__<KODE>". */
-export async function simpanAnakBaru(formData: FormData): Promise<void> {
-  const user = await wajibUser("KADER", "ADMIN");
-  const idEdit = Number(formData.get("id") ?? 0) || 0;
-  const balik = idEdit ? `/kader/anak-baru?ref=b:${idEdit}` : "/kader/anak-baru";
-
+/** Baca + validasi field anak dari FormData (dipakai form kader & ortu). Dosis: name
+ *  "vaksin__<KODE>". Melempar redirect ke `balik` bila ada input tidak valid. */
+function bacaFormAnak(formData: FormData, balik: string): { isi: IsiAnak; posyanduId: number } {
   const nama = String(formData.get("nama") ?? "").trim();
   const tglLahir = String(formData.get("tglLahir") ?? "").trim();
   const jk = String(formData.get("jk") ?? "");
@@ -38,9 +35,6 @@ export async function simpanAnakBaru(formData: FormData): Promise<void> {
   if (jk !== "L" && jk !== "P") galatKe(balik, "Pilih jenis kelamin.");
   if (nik && !/^\d{16}$/.test(nik)) galatKe(balik, "NIK harus 16 digit angka (atau kosongkan).");
 
-  const ids = await binaanIds(user);
-  if (!ids.includes(posyanduId)) galatKe(balik, "Posyandu di luar binaan Anda.");
-
   // kumpulkan dosis vaksin__<KODE> (hanya kode sah & tanggal valid ≥ lahir)
   const vaksin: Record<string, string> = {};
   for (const [k, v] of formData.entries()) {
@@ -54,7 +48,18 @@ export async function simpanAnakBaru(formData: FormData): Promise<void> {
     vaksin[kode] = tgl;
   }
 
-  const isi: IsiAnak = { nama, tglLahir, jk, namaOrtu, nik, noHp, alamat, rtRw, vaksin };
+  return { isi: { nama, tglLahir, jk, namaOrtu, nik, noHp, alamat, rtRw, vaksin }, posyanduId };
+}
+
+/** Simpan (buat/edit) anak baru dari form kader. Dosis: input name "vaksin__<KODE>". */
+export async function simpanAnakBaru(formData: FormData): Promise<void> {
+  const user = await wajibUser("KADER", "ADMIN");
+  const idEdit = Number(formData.get("id") ?? 0) || 0;
+  const balik = idEdit ? `/kader/anak-baru?ref=b:${idEdit}` : "/kader/anak-baru";
+  const { isi, posyanduId } = bacaFormAnak(formData, balik);
+
+  const ids = await binaanIds(user);
+  if (!ids.includes(posyanduId)) galatKe(balik, "Posyandu di luar binaan Anda.");
   const tersegel = segel(isi);
 
   if (idEdit) {
@@ -71,6 +76,37 @@ export async function simpanAnakBaru(formData: FormData): Promise<void> {
   });
   await db.logAktivitas.create({ data: { userId: user.id, aksi: "ANAK_DIDAFTARKAN", detail: `b:${row.id}` } });
   redirect(`/kader/anak/b:${row.id}`);
+}
+
+/** Simpan anak baru yang diinput SENDIRI oleh orang tua. Ditandai olehOrtu + belum
+ *  terverifikasi (menunggu kader), lalu OTOMATIS diklaim ke ortu (tanpa QR). */
+export async function simpanAnakOrtu(formData: FormData): Promise<void> {
+  const user = await wajibUser("ORTU");
+  const balik = "/ortu/anak-baru";
+  const { isi, posyanduId } = bacaFormAnak(formData, balik);
+
+  const pos = await db.posyandu.findUnique({ where: { id: posyanduId } });
+  if (!pos) galatKe(balik, "Pilih posyandu.");
+  const tersegel = segel(isi);
+
+  const row = await db.anakBaru.create({
+    data: { posyanduId, ...tersegel, dibuatOlehId: user.id, olehOrtu: true, terverifikasi: false },
+  });
+  await db.klaimAnak.create({ data: { userId: user.id, anakBaruId: row.id } });
+  await db.logAktivitas.create({ data: { userId: user.id, aksi: "ANAK_DIINPUT_ORTU", detail: `b:${row.id}` } });
+  redirect(`/ortu/anak/b:${row.id}`);
+}
+
+/** Kader/admin memverifikasi anak yang diinput orang tua → boleh ikut export SIMPUS. */
+export async function verifikasiAnak(formData: FormData): Promise<void> {
+  const user = await wajibUser("KADER", "ADMIN");
+  const id = Number(formData.get("id") ?? 0);
+  const ada = await db.anakBaru.findUnique({ where: { id } });
+  const ids = await binaanIds(user);
+  if (!ada || !ids.includes(ada.posyanduId)) redirect("/kader/daftar-bayi");
+  await db.anakBaru.update({ where: { id }, data: { terverifikasi: true } });
+  await db.logAktivitas.create({ data: { userId: user.id, aksi: "ANAK_DIVERIFIKASI", detail: `b:${id}` } });
+  redirect(`/kader/anak/b:${id}`);
 }
 
 /** Hapus anak baru (hanya bila belum pernah diekspor). */

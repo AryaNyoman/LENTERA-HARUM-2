@@ -6,7 +6,7 @@ import {
   DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK,
   adaDosis, dosisTakBerlaku, lengkap, SYARAT_IDL, SYARAT_IBL,
 } from "@/lib/vaksin";
-import { hapusAnakBaru } from "@/lib/anak-actions";
+import { hapusAnakBaru, verifikasiAnak } from "@/lib/anak-actions";
 import { daftarCentang, verifikasiCentang } from "@/lib/centang-actions";
 import TumbuhBagian from "@/components/tumbuh-bagian";
 
@@ -85,10 +85,22 @@ export default async function DetailAnak({
             >
               {anak.sumber === "SIMPUS" ? "Data SIMPUS" : anak.status === "DRAF" ? "BARU — belum ekspor" : "BARU — diekspor"}
             </span>
+            {anak.olehOrtu && (
+              <span
+                className="rounded px-2 py-0.5 text-[11px] font-bold"
+                style={{
+                  background: anak.terverifikasi ? "var(--teal-muda)" : "var(--kuning)",
+                  color: anak.terverifikasi ? "var(--teal-tua)" : "#3a2e00",
+                }}
+              >
+                {anak.terverifikasi ? "diisi ortu ✓" : "diisi ortu"}
+              </span>
+            )}
           </div>
         </div>
 
         {anak.sumber === "BARU" ? (
+          <>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href={`/kader/anak-baru?ref=b:${anak.id}`}
@@ -111,6 +123,22 @@ export default async function DetailAnak({
               </form>
             )}
           </div>
+          {anak.olehOrtu && !anak.terverifikasi && (
+            <div className="mt-3 rounded-xl border-2 border-[var(--kuning)] bg-[#fffdf5] p-3">
+              <p className="text-xs font-bold text-[#8a6d00]">🟡 Diisi orang tua — belum diverifikasi</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-[var(--teks-sekunder)]">
+                Anak ini didaftarkan sendiri oleh orang tua. Periksa datanya (cocokkan buku KIA,
+                hindari duplikat dengan anak yang sudah ada). Setelah diverifikasi, anak bisa ikut Export SIMPUS.
+              </p>
+              <form action={verifikasiAnak} className="mt-2">
+                <input type="hidden" name="id" value={anak.id} />
+                <button className="rounded-xl bg-[var(--teal)] px-4 py-2 text-xs font-bold text-white">
+                  ✓ Verifikasi anak ini
+                </button>
+              </form>
+            </div>
+          )}
+          </>
         ) : (
           <div className="mt-3">
             <Link

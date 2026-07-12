@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { simpanAnakBaru } from "@/lib/anak-actions";
 import { DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK } from "@/lib/vaksin";
 import type { IsiAnak } from "@/lib/brankas";
@@ -22,11 +22,18 @@ export default function FormAnak({
   idEdit,
   awal,
   galat,
+  action,
+  labelSimpan,
+  catatan,
 }: {
   posyandu: PosyanduOpsi[];
   idEdit?: number;
   awal?: IsiAnak & { posyanduId: number };
   galat?: string;
+  /** Server action tujuan submit (default: simpanAnakBaru untuk kader). */
+  action?: (formData: FormData) => Promise<void>;
+  labelSimpan?: string;
+  catatan?: ReactNode;
 }) {
   const [merek, setMerek] = useState<Record<string, string>>(() => merekAwal(awal?.vaksin ?? {}));
   const [tglLahir, setTglLahir] = useState(awal?.tglLahir ?? "");
@@ -46,7 +53,7 @@ export default function FormAnak({
   const lbl = "block text-xs font-semibold text-[var(--teks-sekunder)]";
 
   return (
-    <form action={simpanAnakBaru}>
+    <form action={action ?? simpanAnakBaru}>
       {idEdit && <input type="hidden" name="id" value={idEdit} />}
       {galat && (
         <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-[var(--merah)]">{galat}</p>
@@ -155,10 +162,12 @@ export default function FormAnak({
         type="submit"
         className="mt-4 w-full rounded-xl bg-[var(--teal)] py-3 text-sm font-bold text-white hover:bg-[var(--teal-tua)]"
       >
-        {idEdit ? "Simpan perubahan" : "Daftarkan anak"}
+        {labelSimpan ?? (idEdit ? "Simpan perubahan" : "Daftarkan anak")}
       </button>
       <p className="mt-2 text-center text-[11px] text-[var(--teks-sekunder)]">
-        Anak tersimpan sebagai <b>BARU (draf)</b> — nanti diekspor ke SIMPUS lewat Excel (Tahap 8).
+        {catatan ?? (
+          <>Anak tersimpan sebagai <b>BARU (draf)</b> — nanti diekspor ke SIMPUS lewat Excel.</>
+        )}
       </p>
     </form>
   );

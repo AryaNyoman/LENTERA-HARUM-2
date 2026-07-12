@@ -13,6 +13,8 @@ export interface AnakView {
   posyanduLabel: string; // "Nesa Timur (Seruni)"
   kelurahan: string;
   status?: string; // AnakBaru: DRAF | DIEKSPOR | MASUK_SIMPUS
+  olehOrtu?: boolean; // AnakBaru: true = diinput orang tua sendiri
+  terverifikasi?: boolean; // AnakBaru: ortu-input belum diverifikasi kader?
   isi: IsiAnak;
 }
 
@@ -69,7 +71,7 @@ export async function ambilAnakBinaan(user: UserSesi): Promise<AnakView[]> {
       out.push({
         ref: `b:${a.id}`, sumber: "BARU", id: a.id, posyanduId: a.posyanduId,
         posyanduLabel: labelPos(a.posyandu), kelurahan: a.posyandu.kelurahan.nama,
-        status: a.status, isi,
+        status: a.status, olehOrtu: a.olehOrtu, terverifikasi: a.terverifikasi, isi,
       });
   }
   return out.sort((x, y) => x.isi.nama.localeCompare(y.isi.nama, "id"));
@@ -102,7 +104,7 @@ export async function ambilAnak(ref: string, user: UserSesi): Promise<AnakView |
   return isi && {
     ref, sumber: "BARU", id, posyanduId: a.posyanduId,
     posyanduLabel: labelPos(a.posyandu), kelurahan: a.posyandu.kelurahan.nama,
-    status: a.status, isi,
+    status: a.status, olehOrtu: a.olehOrtu, terverifikasi: a.terverifikasi, isi,
   };
 }
 

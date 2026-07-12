@@ -115,6 +115,8 @@ model AnakBaru {
   tag          String
   data         String
   status       String        @default("DRAF")
+  olehOrtu     Boolean       @default(false) // true = diinput orang tua sendiri (bukan kader)
+  terverifikasi Boolean      @default(true)  // ortu-input mulai false → kader verifikasi jadi true; gerbang export
   dibuatOlehId Int
   anakSimpusId Int?
   dibuatPada   DateTime      @default(now())

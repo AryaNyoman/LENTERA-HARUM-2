@@ -139,6 +139,17 @@ export default async function DaftarBayi({
                     SIMPUS
                   </span>
                 )}
+                {a.olehOrtu && (
+                  <span
+                    className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+                    style={{
+                      background: a.terverifikasi ? "var(--teal-muda)" : "var(--kuning)",
+                      color: a.terverifikasi ? "var(--teal-tua)" : "#3a2e00",
+                    }}
+                  >
+                    {a.terverifikasi ? "diisi ortu ✓" : "diisi ortu · perlu verifikasi"}
+                  </span>
+                )}
               </div>
             </Link>
           );
