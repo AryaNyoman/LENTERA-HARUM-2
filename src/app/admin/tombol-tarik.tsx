@@ -10,9 +10,10 @@ export function TombolTarik() {
     <button
       disabled={pending}
       aria-busy={pending}
-      className="btn3d btn3d-teal shrink-0 px-4 py-2 text-xs disabled:cursor-wait disabled:opacity-60"
+      className="btn3d btn3d-teal h-[42px] shrink-0 rounded-[14px] px-3.5 text-[12.5px] disabled:cursor-wait disabled:opacity-60"
+      style={{ boxShadow: "0 4px 0 var(--teal-tua)" }}
     >
-      {pending ? "⟳ Menarik data…" : "⟳ Tarik sekarang"}
+      {pending ? "Menarik data…" : "Tarik sekarang"}
     </button>
   );
 }
