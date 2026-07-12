@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { daftarOrtu } from "@/lib/akun-actions";
@@ -12,87 +13,85 @@ export default async function DaftarPage({
   if (user) redirect(rumahPeran(user.peran));
   const { galat } = await searchParams;
 
+  const inp =
+    "mt-1.5 h-12 w-full rounded-2xl border-2 border-[var(--krem-border)] bg-[var(--krem-input)] px-4 text-[15px] font-semibold outline-none transition-colors focus:border-[var(--coral)]";
+  const lbl = "block text-[12.5px] font-extrabold text-[var(--teks-3)]";
+
   return (
-    <main className="min-h-dvh bg-titik-ortu">
+    <main className="bg-titik-ortu min-h-dvh">
       <div
-        className="relative overflow-hidden px-6 pb-8 pt-10 text-center text-white"
-        style={{ background: "linear-gradient(160deg,#e8704a,#f0906e)", "--scallop": "#f0906e" } as React.CSSProperties}
+        className="relative px-6 pb-6 pt-7 text-center text-white"
+        style={{ background: "linear-gradient(160deg,#e8704a,#f0906e)" }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/gambar/bayi-duduk.png"
-          alt=""
-          width={72}
-          height={72}
-          className="pop mx-auto mb-2"
-          style={{ animation: "floaty 4s ease-in-out infinite" }}
+        <div
+          className="absolute right-7 top-4 h-[30px] w-[30px] rounded-full"
+          style={{ background: "rgba(255,244,214,.4)", animation: "floaty 6s ease-in-out infinite" }}
         />
-        <h1 className="font-judul pop pop-1 text-xl font-extrabold">Daftar — Orang Tua</h1>
-        <p className="pop pop-2 mt-1 text-xs text-white/90">Pantau imunisasi &amp; tumbuh kembang Si Kecil</p>
+        <div className="pop relative">
+          <img
+            src="/gambar/bayi-duduk.png"
+            alt=""
+            width={64}
+            height={64}
+            className="mx-auto mb-2 h-16 w-16 object-contain drop-shadow-[0_6px_10px_rgba(0,0,0,.15)]"
+            style={{ animation: "floaty 5.5s ease-in-out infinite" }}
+          />
+          <h1 className="font-judul text-[23px] font-bold leading-tight">Yuk gabung, Bunda &amp; Ayah!</h1>
+          <p className="mt-1 text-xs font-semibold text-white/90">
+            Pantau imunisasi &amp; tumbuh kembang Si Kecil dari HP
+          </p>
+        </div>
       </div>
       <div className="scallop" style={{ "--scallop": "#f0906e" } as React.CSSProperties} />
 
-      <div className="mx-auto -mt-2 w-full max-w-sm px-6 pb-8">
+      <div className="mx-auto w-full max-w-md px-5 pb-8 pt-3">
         <form
           action={daftarOrtu}
-          className="pop pop-3 rounded-[var(--r-kartu)] border-2 border-[var(--krem-border)] bg-[var(--kartu)] p-6"
-          style={{ boxShadow: "0 8px 0 var(--coral-pastel)" }}
+          className="pop pop-1 rounded-3xl border-2 border-[var(--krem-border)] bg-[var(--kartu)] p-5"
+          style={{ boxShadow: "0 8px 0 rgba(231,221,207,.55)" }}
         >
           {galat && (
-            <p className="mb-3 rounded-lg bg-[var(--merah-muda)] px-3 py-2 text-xs font-semibold text-[var(--merah-teks)]">
+            <p className="mb-3 rounded-xl bg-[var(--merah-muda)] px-3 py-2 text-xs font-bold text-[var(--merah-teks)]">
               {galat}
             </p>
           )}
-          <label className="block text-xs font-semibold text-[var(--teks-sekunder)]">
+          <label className={lbl}>
             Nama lengkap (Bunda/Ayah)
-            <input
-              name="nama"
-              className="mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2.5 text-base focus:border-[var(--coral)] focus:outline-none"
-              placeholder="mis. Ni Made Sari"
-            />
+            <input name="nama" className={inp} placeholder="mis. Ni Made Sari" />
           </label>
-          <label className="mt-3 block text-xs font-semibold text-[var(--teks-sekunder)]">
-            No HP (dipakai untuk login)
-            <input
-              name="noHp"
-              inputMode="numeric"
-              className="mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2.5 text-base focus:border-[var(--coral)] focus:outline-none"
-              placeholder="08…"
-            />
+          <label className={`${lbl} mt-3`}>
+            No HP <span className="font-semibold text-[var(--abu)]">(dipakai untuk login)</span>
+            <input name="noHp" inputMode="numeric" className={inp} placeholder="08…" />
           </label>
-          <label className="mt-3 block text-xs font-semibold text-[var(--teks-sekunder)]">
-            Sandi (min. 6 karakter)
-            <input
-              name="sandi"
-              type="password"
-              autoComplete="new-password"
-              className="mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2.5 text-base focus:border-[var(--coral)] focus:outline-none"
-            />
+          <label className={`${lbl} mt-3`}>
+            Sandi <span className="font-semibold text-[var(--abu)]">(min. 6 karakter)</span>
+            <input name="sandi" type="password" autoComplete="new-password" className={inp} />
           </label>
-          <label className="mt-3 block text-xs font-semibold text-[var(--teks-sekunder)]">
+          <label className={`${lbl} mt-3`}>
             Ulangi sandi
-            <input
-              name="ulang"
-              type="password"
-              autoComplete="new-password"
-              className="mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2.5 text-base focus:border-[var(--coral)] focus:outline-none"
-            />
+            <input name="ulang" type="password" autoComplete="new-password" className={inp} />
           </label>
-          <button type="submit" className="btn3d btn3d-coral mt-5 w-full py-3 text-sm">
+          <button
+            type="submit"
+            className="btn3d btn3d-coral mt-4.5 h-[54px] w-full rounded-[18px] text-[17px]"
+            style={{ boxShadow: "0 6px 0 var(--coral-tua)", marginTop: "18px" }}
+          >
             Daftar
           </button>
         </form>
 
-        <p className="pop pop-4 mt-4 text-center text-xs text-[var(--teks-sekunder)]">
+        <p className="pop pop-2 mt-3.5 text-center text-xs font-semibold text-[var(--teks-sekunder)]">
           Sudah punya akun?{" "}
           <Link href="/login" className="font-bold text-[var(--teal-tua)]">
-            Masuk
+            Masuk di sini
           </Link>
         </p>
-        <p className="pop pop-5 mt-3 rounded-2xl border-2 border-[var(--teal-pastel)] bg-[var(--teal-muda)] p-3 text-center text-[11px] leading-relaxed text-[var(--teal-tua)]">
-          📱 Setelah daftar, minta <b>kode QR</b> ke kader posyandu untuk menghubungkan data anak
-          Anda — atau tambahkan sendiri dari menu Anakku.
-        </p>
+        <div className="pop pop-3 mt-3 flex items-center gap-2.5 rounded-[18px] bg-[var(--teal-muda)] px-3.5 py-3">
+          <span className="shrink-0 text-lg">🔗</span>
+          <p className="text-[11px] font-semibold leading-relaxed text-[var(--teal-tua)]">
+            Setelah daftar, minta <b>kode QR</b> ke kader posyandu untuk menghubungkan data anak Anda.
+          </p>
+        </div>
       </div>
     </main>
   );

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { masuk } from "@/lib/akun-actions";
@@ -12,80 +13,84 @@ export default async function LoginPage({
   if (user) redirect(rumahPeran(user.peran));
   const { galat } = await searchParams;
 
-  return (
-    <main className="min-h-dvh bg-titik-kader">
-      <div
-        className="relative overflow-hidden px-6 pb-8 pt-10 text-center text-white"
-        style={{ background: "linear-gradient(160deg,#26907f,#3aa895)", "--scallop": "#3aa895" } as React.CSSProperties}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/icon-192.png"
-          alt=""
-          width={64}
-          height={64}
-          className="pop mx-auto mb-3 rounded-2xl bg-white/95 p-2 shadow-lg"
-          style={{ animation: "floaty 4s ease-in-out infinite" }}
-        />
-        <h1 className="font-judul pop pop-1 text-xl font-extrabold">SIMPUS-POSYANDU</h1>
-        <p className="pop pop-2 mt-1 text-xs text-white/90">Puskesmas Cakranegara · Mataram, NTB</p>
-      </div>
-      <div className="scallop" style={{ "--scallop": "#3aa895" } as React.CSSProperties} />
+  const inp =
+    "mt-1.5 h-[50px] w-full rounded-2xl border-2 border-[var(--krem-border)] bg-[var(--krem-input)] px-4 text-[15px] font-semibold outline-none transition-colors focus:border-[var(--teal)]";
 
-      <div className="mx-auto -mt-2 w-full max-w-sm px-6 pb-8">
+  return (
+    <main className="bg-titik-gerbang flex min-h-dvh flex-col">
+      <div
+        className="relative px-6 pb-8 pt-9 text-center text-white"
+        style={{ background: "linear-gradient(160deg,#2e9e8f,#45b3a3)" }}
+      >
+        <div
+          className="absolute left-6 top-5 h-[34px] w-[34px] rounded-full bg-white/15"
+          style={{ animation: "floaty 5s ease-in-out infinite" }}
+        />
+        <div
+          className="absolute right-8 top-10 h-5 w-5 rounded-full bg-white/20"
+          style={{ animation: "floaty 7s ease-in-out infinite" }}
+        />
+        <div className="pop relative">
+          <div className="mx-auto mb-3 flex h-[76px] w-[76px] items-center justify-center rounded-full bg-white shadow-[0_10px_24px_rgba(23,79,71,.28)]">
+            <img src="/icon-192.png" alt="" width={52} height={52} className="h-[52px] w-[52px] rounded-[14px] object-contain" />
+          </div>
+          <h1 className="font-judul text-2xl font-bold leading-tight">Halo! Selamat datang 👋</h1>
+          <p className="mt-1 text-[12.5px] font-semibold text-white/90">
+            SIMPUS-POSYANDU · Puskesmas Cakranegara
+          </p>
+        </div>
+      </div>
+      <div className="scallop" style={{ "--scallop": "#45b3a3" } as React.CSSProperties} />
+
+      <div className="mx-auto w-full max-w-md flex-1 px-5 pt-4">
         <form
           action={masuk}
-          className="pop pop-3 rounded-[var(--r-kartu)] border-2 border-[var(--krem-border)] bg-[var(--kartu)] p-6"
-          style={{ boxShadow: "0 8px 0 var(--teal-pastel)" }}
+          className="pop pop-1 rounded-3xl border-2 border-[var(--krem-border)] bg-[var(--kartu)] p-6"
+          style={{ boxShadow: "0 8px 0 rgba(231,221,207,.55)" }}
         >
-          <h2 className="font-judul mb-4 text-sm font-bold text-[var(--teal-tua)]">Masuk</h2>
           {galat && (
-            <p className="mb-3 rounded-lg bg-[var(--merah-muda)] px-3 py-2 text-xs font-semibold text-[var(--merah-teks)]">
+            <p className="mb-3 rounded-xl bg-[var(--merah-muda)] px-3 py-2 text-xs font-bold text-[var(--merah-teks)]">
               {galat}
             </p>
           )}
-          <label className="block text-xs font-semibold text-[var(--teks-sekunder)]">
+          <label className="block text-[12.5px] font-extrabold text-[var(--teks-3)]">
             Username / No HP
-            <input
-              name="username"
-              autoComplete="username"
-              className="mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2.5 text-base focus:border-[var(--teal)] focus:outline-none"
-              placeholder="kader: username · orang tua: 08…"
-            />
+            <input name="username" autoComplete="username" className={inp} placeholder="kader: username · ortu: 08…" />
           </label>
-          <label className="mt-3 block text-xs font-semibold text-[var(--teks-sekunder)]">
+          <label className="mt-3.5 block text-[12.5px] font-extrabold text-[var(--teks-3)]">
             Sandi
-            <input
-              name="sandi"
-              type="password"
-              autoComplete="current-password"
-              className="mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2.5 text-base focus:border-[var(--teal)] focus:outline-none"
-              placeholder="••••••••"
-            />
+            <input name="sandi" type="password" autoComplete="current-password" className={inp} placeholder="••••••••" />
           </label>
-          <button type="submit" className="btn3d btn3d-teal mt-5 w-full py-3 text-sm">
+          <button
+            type="submit"
+            className="btn3d btn3d-teal mt-5 h-[54px] w-full rounded-[18px] text-[17px]"
+            style={{ boxShadow: "0 6px 0 var(--teal-tua)" }}
+          >
             Masuk
           </button>
         </form>
 
         <Link
           href="/daftar"
-          className="pop pop-4 mt-4 flex items-center gap-3 rounded-2xl border-2 border-[var(--coral-border)] bg-[var(--coral-muda)] p-4 text-left"
+          className="pop pop-2 mt-4 flex items-center gap-3 rounded-[20px] border-2 border-[var(--coral-border)] bg-[var(--coral-muda)] px-4 py-3.5"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/gambar/anak-perempuan.png" alt="" width={44} height={44} className="shrink-0" />
-          <span className="min-w-0">
-            <span className="font-judul block text-sm font-bold text-[var(--coral-gelap)]">
-              Orang tua belum punya akun?
-            </span>
-            <span className="block text-xs text-[var(--teks-sekunder)]">Daftar di sini →</span>
+          <img src="/gambar/anak-perempuan.png" alt="" width={44} height={44} className="h-11 w-11 shrink-0 object-contain" />
+          <span className="text-xs font-semibold leading-relaxed text-[var(--teks-sekunder)]">
+            Bunda/Ayah baru di sini? <b style={{ color: "#d95f38" }}>Daftar dulu yuk</b> — cukup No HP &amp; sandi, gratis.
           </span>
         </Link>
 
-        <p className="pop pop-5 mt-4 text-center text-[11px] leading-relaxed text-[var(--teks-sekunder)]">
-          🔒 Akun kader dibuatkan oleh petugas puskesmas. Data anak Anda tersimpan aman & terenkripsi.
+        <p className="pop pop-3 mt-3.5 text-center text-[11px] font-semibold text-[var(--abu)]">
+          Akun kader dibuatkan oleh petugas puskesmas 💚
         </p>
       </div>
+
+      <p className="flex items-center justify-center gap-1.5 px-4 pb-4 pt-3 text-center text-[10.5px] font-semibold text-[var(--abu)]">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        Data anak terenkripsi &amp; hanya untuk posyandu Anda
+      </p>
     </main>
   );
 }
