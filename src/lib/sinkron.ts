@@ -89,11 +89,17 @@ export async function jalankanSinkron(): Promise<HasilSinkron> {
     const pos = await pg.query<{ id: number; kelurahanId: number; nama: string; namaPosyandu: string; aktif: boolean; khusus: boolean }>(
       'SELECT id, "kelurahanId", nama, "namaPosyandu", aktif, khusus FROM "Posyandu" ORDER BY id',
     );
+    // Keranjang "Alamat Tidak Jelas" di SIMPUS bukan posyandu nyata → jangan tampil
+    // di pilihan form & anaknya tidak diimpor (permintaan pemilik).
+    const idTidakJelas = new Set(
+      pos.rows.filter((p) => /alamat tidak jelas/i.test(p.nama)).map((p) => p.id),
+    );
     for (const p of pos.rows) {
+      const aktif = p.aktif && !idTidakJelas.has(p.id);
       await db.posyandu.upsert({
         where: { id: p.id },
-        create: { id: p.id, kelurahanId: p.kelurahanId, nama: p.nama, namaPosyandu: p.namaPosyandu, aktif: p.aktif, khusus: p.khusus },
-        update: { kelurahanId: p.kelurahanId, nama: p.nama, namaPosyandu: p.namaPosyandu, aktif: p.aktif, khusus: p.khusus },
+        create: { id: p.id, kelurahanId: p.kelurahanId, nama: p.nama, namaPosyandu: p.namaPosyandu, aktif, khusus: p.khusus },
+        update: { kelurahanId: p.kelurahanId, nama: p.nama, namaPosyandu: p.namaPosyandu, aktif, khusus: p.khusus },
       });
     }
 
@@ -103,7 +109,12 @@ export async function jalankanSinkron(): Promise<HasilSinkron> {
     );
     let masuk = 0, gagal = 0;
     const kini = new Date();
+    // bersihkan salinan lama anak keranjang tidak-jelas (bila tarikan sebelumnya sempat impor)
+    if (idTidakJelas.size > 0) {
+      await db.anakSimpus.deleteMany({ where: { posyanduId: { in: [...idTidakJelas] } } });
+    }
     for (const a of anak.rows) {
+      if (idTidakJelas.has(a.posyanduId)) continue;
       try {
         const isi = keIsiAnak(dekripsiSimpus(a, dek));
         if (!isi.nama || !isi.tglLahir) { gagal++; continue; }

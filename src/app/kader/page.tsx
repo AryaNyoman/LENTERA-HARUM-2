@@ -45,14 +45,18 @@ export default async function DashboardKader() {
   });
 
   const now = new Date();
-  let bayi = 0, baduta = 0, idl = 0, ibl = 0, draf = 0;
+  let bayi = 0, baduta = 0, idl = 0, ibl = 0, siapSetor = 0, tungguVerif = 0;
   const perPosyandu = new Map<string, number>();
   for (const a of anak) {
     const u = kelompokUsia(hitungUsiaBulan(a.isi.tglLahir, now));
     if (u === "0-11") bayi++; else if (u === "12-24") baduta++;
     if (lengkap(a.isi.vaksin, SYARAT_IDL)) idl++;
     if (lengkap(a.isi.vaksin, SYARAT_IBL)) ibl++;
-    if (a.sumber === "BARU" && a.status === "DRAF") draf++;
+    if (a.sumber === "BARU" && a.status === "DRAF") {
+      // isian ortu yang belum diverifikasi TIDAK ikut export → jangan dihitung "siap disetor"
+      if (a.olehOrtu && !a.terverifikasi) tungguVerif++;
+      else siapSetor++;
+    }
     perPosyandu.set(a.posyanduLabel, (perPosyandu.get(a.posyanduLabel) ?? 0) + 1);
   }
 
@@ -88,21 +92,39 @@ export default async function DashboardKader() {
           />
         </div>
 
-        {draf > 0 && (
+        {siapSetor > 0 && (
           <div className="pop pop-5 mt-3 flex items-center gap-3 rounded-[22px] border-2 border-[var(--coral-border)] bg-[var(--kartu)] px-4 py-3.5">
             <img src="/gambar/petugas-kesehatan.png" alt="" width={52} height={52} className="h-[52px] w-[52px] shrink-0 object-contain" />
             <div className="min-w-0 flex-1">
               <p className="font-judul text-sm font-bold text-[var(--coral-gelap)]">
-                {draf} anak baru siap disetor 📦
+                {siapSetor} anak baru siap disetor 📦
               </p>
               <p className="text-[11px] font-semibold leading-snug text-[var(--teks-sekunder)]">
                 Export Excel, lalu serahkan ke petugas SIMPUS ya!
+                {tungguVerif > 0 && <> ({tungguVerif} lainnya menunggu verifikasi — belum ikut.)</>}
               </p>
             </div>
             <a href="/kader/export" className="btn3d btn3d-coral flex h-10 shrink-0 items-center rounded-[14px] px-3.5 text-[13px]" style={{ boxShadow: "0 4px 0 var(--coral-tua)" }}>
               Export
             </a>
           </div>
+        )}
+        {siapSetor === 0 && tungguVerif > 0 && (
+          <Link
+            href="/kader/daftar-bayi"
+            className="pop pop-5 mt-3 flex items-center gap-3 rounded-[22px] border-2 bg-[var(--kartu)] px-4 py-3.5 transition-transform active:scale-[.97]"
+            style={{ borderColor: "var(--verif-garis)" }}
+          >
+            <span className="shrink-0 text-[26px]" style={{ display: "inline-block", animation: "wiggle 2.4s ease-in-out infinite" }}>🟡</span>
+            <span className="min-w-0 flex-1">
+              <span className="font-judul block text-sm font-bold" style={{ color: "var(--verif-teks)" }}>
+                {tungguVerif} anak isian ortu menunggu verifikasi
+              </span>
+              <span className="block text-[11px] font-semibold leading-snug text-[var(--teks-sekunder)]">
+                Belum ada yang bisa disetor — verifikasi dulu di Daftar Bayi, baru Export.
+              </span>
+            </span>
+          </Link>
         )}
 
         <div className="pop pop-6 mt-2.5 flex items-center gap-2.5 rounded-[18px] bg-[var(--teal-muda)] px-3.5 py-2.5">
