@@ -1,8 +1,9 @@
-import Link from "next/link";
+/* eslint-disable @next/next/no-img-element */
 import { notFound } from "next/navigation";
+import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
 import { ambilAnakOrtu } from "@/lib/ortu";
-import { hitungUsiaBulan, labelUsia, fmtTglId } from "@/lib/anak";
+import { fmtTglId, hitungUsiaBulan, labelUsia } from "@/lib/anak";
 import {
   DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK,
   adaDosis, dosisTakBerlaku, lengkap, SYARAT_IDL, SYARAT_IBL,
@@ -19,6 +20,29 @@ function isiSlot(vaksin: Record<string, string>, kode: string): { tgl: string; m
   return vaksin[kode] ? { tgl: vaksin[kode] } : null;
 }
 
+function emojiUsia(um: number): string {
+  if (um === 0) return "👼";
+  if (um === 1) return "🍼";
+  if (um <= 4) return "🧸";
+  return "🚶";
+}
+
+function alasanTakBerlaku(kode: string): string {
+  return kode === "ROTA3" ? "Rotarix cukup 2" : "Hexa sudah mencakup";
+}
+
+function tambahBulanIso(iso: string, n: number): Date {
+  const d = new Date(iso + "T00:00:00");
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
+
+const CEK_HIJAU = (
+  <span className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full bg-[var(--hijau)]">
+    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+  </span>
+);
+
 export default async function DetailAnakOrtu({
   params,
 }: {
@@ -29,7 +53,6 @@ export default async function DetailAnakOrtu({
   const anak = await ambilAnakOrtu(decodeURIComponent(ref), user);
   if (!anak) notFound();
 
-  const usia = hitungUsiaBulan(anak.isi.tglLahir);
   const idl = lengkap(anak.isi.vaksin, SYARAT_IDL);
   const ibl = lengkap(anak.isi.vaksin, SYARAT_IBL);
   const centang = await daftarCentang(anak.ref);
@@ -44,111 +67,202 @@ export default async function DetailAnakOrtu({
     grup.set(um, [...(grup.get(um) ?? []), d]);
   }
 
+  // grup terlambat paling awal (dapat stiker "waktunya kejar!")
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const grupTerlewat = [...grup.entries()]
+    .filter(([um, daftar]) =>
+      tambahBulanIso(anak.isi.tglLahir, um).getTime() < now.getTime() &&
+      daftar.some((d) => !dosisTakBerlaku(d.kode, anak.isi.vaksin) && !adaDosis(anak.isi.vaksin, d.kode)),
+    )
+    .map(([um]) => um);
+  const umKejar = grupTerlewat.length > 0 ? Math.min(...grupTerlewat) : -1;
+
+  const usiaKini = labelUsia(hitungUsiaBulan(anak.isi.tglLahir));
+
   return (
-    <main className="mx-auto max-w-3xl px-4 py-5">
-      <Link href="/ortu/anakku" className="text-xs font-bold text-[var(--teks-sekunder)]">← Anakku</Link>
+    <main>
+      <KepalaHalaman judul="Kartu Imunisasi 💳" sub="dari menu Anakku" balik="/ortu/anakku" peran="ortu" />
 
-      <section
-        className="mt-3 rounded-[var(--r-kartu)] border-2 border-[var(--coral-border)] p-4"
-        style={{ background: "linear-gradient(135deg,var(--coral-muda),#fff)" }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="font-judul text-lg font-extrabold">{anak.isi.nama}</h1>
-            <p className="mt-0.5 text-xs text-[var(--teks-sekunder)]">
-              {anak.isi.jk === "P" ? "Perempuan" : "Laki-laki"} · lahir {fmtTglId(anak.isi.tglLahir)} · {labelUsia(usia)}
-            </p>
-            <p className="mt-0.5 text-xs text-[var(--teks-sekunder)]">
-              {anak.posyanduLabel} — {anak.kelurahan}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            {idl && <span className="rounded bg-[var(--hijau-muda)] px-2 py-0.5 text-[11px] font-bold text-[var(--hijau-teks)]">IDL ✓</span>}
-            {ibl && <span className="rounded bg-[var(--hijau-muda)] px-2 py-0.5 text-[11px] font-bold text-[var(--hijau-teks)]">IBL ✓</span>}
-          </div>
-        </div>
-        <div className="mt-3">
-          <div className="flex justify-between text-[11px] font-bold text-[var(--coral-gelap)]">
-            <span>Imunisasi {sudah}/{relevan.length} dosis</span>
-            <span>{persen}%</span>
-          </div>
-          <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-white">
-            <div className="h-full rounded-full" style={{ width: `${persen}%`, background: persen >= 100 ? "var(--hijau)" : "var(--coral)" }} />
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-4">
-        <h2 className="font-judul text-sm font-extrabold">Kartu Imunisasi Digital</h2>
-        <div className="mt-2 space-y-3">
-          {[...grup.entries()].map(([um, daftar]) => (
-            <div key={um} className="rounded-2xl border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] p-3">
-              <p className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--coral-gelap)]">
-                {um === 0 ? "Lahir" : `${um} bulan`}
+      <div className="mx-auto max-w-md px-4 pt-3.5">
+        <section className="pop overflow-hidden rounded-3xl border-2 border-[var(--coral-pastel)] bg-[var(--kartu)]">
+          <div className="relative flex items-center gap-3 p-4" style={{ background: "linear-gradient(135deg,#fdf0e9,#fbe9dd)" }}>
+            <span
+              className="font-judul absolute right-3 top-2.5 rounded-full px-2 py-0.5 text-[9.5px] font-bold"
+              style={{ background: "var(--verif)", color: "var(--verif-pekat)", transform: "rotate(3deg)" }}
+            >
+              {usiaKini}
+            </span>
+            <div className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full border-[3px] border-[var(--coral)] bg-white">
+              <img src={anak.isi.jk === "P" ? "/gambar/anak-perempuan.png" : "/gambar/anak-laki.png"} alt="" width={46} height={46} className="h-[46px] w-[46px] object-contain" />
+            </div>
+            <div className="min-w-0 flex-1 pt-1">
+              <p className="font-judul text-lg font-bold leading-tight">{anak.isi.nama}</p>
+              <p className="mt-0.5 text-[11px] font-semibold leading-relaxed text-[#8a6a5c]">
+                {anak.isi.jk === "P" ? "Perempuan" : "Laki-laki"} · lahir {fmtTglId(anak.isi.tglLahir)}
+                <br />
+                {anak.posyanduLabel} · {anak.kelurahan}
               </p>
-              <div className="mt-1.5 space-y-1">
+              {(idl || ibl) && (
+                <p className="mt-1 flex gap-1">
+                  {idl && <span className="rounded-md bg-[var(--hijau-muda)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--hijau-teks)]">IDL ✓</span>}
+                  {ibl && <span className="rounded-md bg-[var(--hijau-muda)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--hijau-teks)]">IBL ✓</span>}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="px-4 pb-3.5 pt-3">
+            <div className="flex items-baseline justify-between">
+              <p className="text-[11.5px] font-extrabold text-[var(--teks-3)]">Imunisasi {sudah} dari {relevan.length} dosis</p>
+              <p className="font-judul text-sm font-bold" style={{ color: "#d95f38" }}>{persen}%</p>
+            </div>
+            <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-[#f6ece5]">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${persen}%`,
+                  background: persen >= 100 ? "var(--hijau)" : "linear-gradient(90deg,#e8704a,#f2b705)",
+                  transformOrigin: "left",
+                  animation: "slideBar .9s cubic-bezier(.22,1,.36,1) .2s both",
+                }}
+              />
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-3.5 flex flex-col gap-2.5">
+          {[...grup.entries()].map(([um, daftar], gi) => {
+            const kejar = um === umKejar;
+            return (
+              <div
+                key={um}
+                className={`pop pop-${Math.min(gi + 1, 6)} relative rounded-[20px] border-2 bg-[var(--kartu)] px-3.5 py-3 ${kejar ? "mt-1" : ""}`}
+                style={{ borderColor: kejar ? "var(--merah-border)" : "var(--garis-ortu)" }}
+              >
+                {kejar && (
+                  <span
+                    className="font-judul absolute -top-2.5 right-3 rounded-full bg-[var(--merah)] px-2.5 py-0.5 text-[9.5px] font-bold text-white"
+                    style={{ transform: "rotate(1.5deg)" }}
+                  >
+                    waktunya kejar!
+                  </span>
+                )}
+                <p className="font-judul mb-1.5 text-xs font-bold text-[#c9a689]">
+                  {emojiUsia(um)} {um === 0 ? "LAHIR" : `${um} BULAN`}
+                </p>
                 {daftar.map((d) => {
                   const takBerlaku = dosisTakBerlaku(d.kode, anak.isi.vaksin);
                   const slot = isiSlot(anak.isi.vaksin, d.kode);
                   const sudahD = adaDosis(anak.isi.vaksin, d.kode);
                   const c = !sudahD ? centangMap.get(d.kode) : undefined;
                   const bisaTandai = !sudahD && !takBerlaku && !c;
-                  return (
-                    <div key={d.kode} className="text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={takBerlaku ? "text-[var(--teks-sekunder)] line-through opacity-60" : ""}>
-                          {sudahD ? "✅" : c ? (c.verified ? "🔵" : "🟡") : takBerlaku ? "➖" : "⚪"} {d.nama}
+                  const telat = tambahBulanIso(anak.isi.tglLahir, um).getTime() < now.getTime();
+
+                  if (takBerlaku) {
+                    return (
+                      <div key={d.kode} className="flex items-center gap-2 py-1">
+                        <span className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full bg-[#f2ede6]">
+                          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#bdb2a4" strokeWidth="3" strokeLinecap="round"><path d="M5 12h14" /></svg>
+                        </span>
+                        <span className="min-w-0 flex-1 text-[13px] font-semibold text-[#bdb2a4] line-through">{d.nama}</span>
+                        <span className="font-judul shrink-0 rounded-md bg-[#f6f1ea] px-1.5 py-0.5 text-[10px] font-bold text-[var(--abu)]">
+                          {alasanTakBerlaku(d.kode)}
+                        </span>
+                      </div>
+                    );
+                  }
+                  if (sudahD) {
+                    return (
+                      <div key={d.kode} className="flex items-center gap-2 py-1">
+                        {CEK_HIJAU}
+                        <span className="min-w-0 flex-1 text-[13px] font-bold">
+                          {d.nama}
                           {slot?.merek && (
-                            <span className="ml-1 rounded bg-[var(--bg)] px-1 py-0.5 text-[10px] font-bold text-[var(--teks-sekunder)]">
+                            <span className="font-judul ml-1.5 rounded-md bg-[var(--coral-muda)] px-1.5 py-0.5 text-[9.5px] font-bold text-[var(--coral-gelap)]">
                               {slot.merek}
                             </span>
                           )}
-                          {c && (
-                            <span className="ml-1 rounded px-1 py-0.5 text-[10px] font-bold"
-                              style={{ background: c.verified ? "var(--teal-muda)" : "var(--verif-muda)", color: c.verified ? "var(--teal-tua)" : "var(--verif-teks)" }}>
-                              {c.verified ? "✓ diverifikasi kader" : "menunggu verifikasi"}
-                            </span>
-                          )}
                         </span>
-                        <span className="shrink-0 text-xs text-[var(--teks-sekunder)]">
-                          {takBerlaku ? "tak berlaku" : slot ? fmtTglId(slot.tgl) : c ? fmtTglId(c.tgl) : "belum"}
-                        </span>
+                        <span className="shrink-0 text-[11px] font-semibold text-[var(--abu)]">{slot ? fmtTglId(slot.tgl) : ""}</span>
                       </div>
+                    );
+                  }
+                  if (c) {
+                    return (
+                      <div key={d.kode} className="flex items-center gap-2 py-1">
+                        <span
+                          className="font-judul flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-xs font-extrabold"
+                          style={c.verified ? { background: "var(--teal)", color: "#fff" } : { background: "var(--verif)", color: "var(--verif-pekat)" }}
+                        >
+                          !
+                        </span>
+                        <span className="min-w-0 flex-1 text-[13px] font-bold">
+                          {d.nama}
+                          <span
+                            className="font-judul ml-1.5 rounded-md px-1.5 py-0.5 text-[9.5px] font-bold"
+                            style={c.verified ? { background: "var(--teal-muda)", color: "var(--teal-gelap)" } : { background: "var(--verif-muda)", color: "var(--verif-teks)" }}
+                          >
+                            {c.verified ? "✓ diverifikasi kader" : "🟡 menunggu verifikasi"}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-[11px] font-semibold text-[var(--abu)]">{fmtTglId(c.tgl)}</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <details key={d.kode} className="group py-1">
+                      <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+                        <span
+                          className="h-[19px] w-[19px] shrink-0 rounded-full border-2 border-dashed"
+                          style={{ borderColor: telat ? "#e39a90" : "#e0cfc0", boxSizing: "border-box", background: telat ? "var(--merah-muda)" : "transparent" }}
+                        />
+                        <span className="min-w-0 flex-1 text-[13px] font-semibold text-[var(--teks-3)]">
+                          {d.nama}
+                          {um >= 9 && <span className="ml-1 text-[10px] font-semibold text-[var(--abu)]">{um} bln</span>}
+                        </span>
+                        <span className="font-judul shrink-0 text-[10.5px] font-bold" style={{ color: "#d95f38" }}>
+                          <span className="group-open:hidden">tandai sudah ▸</span>
+                          <span className="hidden group-open:inline">tutup ▴</span>
+                        </span>
+                      </summary>
                       {bisaTandai && (
-                        <details className="mt-0.5 pl-6">
-                          <summary className="cursor-pointer text-[11px] font-bold text-[var(--coral)]">
-                            tandai sudah ↗
-                          </summary>
-                          <form action={tandaiOrtu} className="mt-1.5 rounded-xl border-2 border-[var(--coral-border)] bg-[var(--coral-muda)] p-2.5">
+                        <div className="mt-1.5 rounded-2xl border-[1.5px] border-[var(--coral-border)] px-3 py-2.5" style={{ background: "#fdf4f0" }}>
+                          <p className="text-[10.5px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
+                            Sudah diberikan di faskes lain (RS/klinik)? Catat di sini:
+                          </p>
+                          <form action={tandaiOrtu}>
                             <input type="hidden" name="ref" value={anak.ref} />
                             <input type="hidden" name="kode" value={d.kode} />
-                            <div className="flex flex-wrap items-end gap-2">
-                              <label className="text-[10px] font-semibold text-[var(--teks-sekunder)]">
+                            <div className="mt-1.5 grid grid-cols-2 gap-2">
+                              <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
                                 Tanggal
-                                <input name="tgl" type="date" className="mt-0.5 block rounded-lg border-2 border-[var(--garis)] bg-white px-2 py-1 text-xs" />
+                                <input name="tgl" type="date" className="mt-1 h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" />
                               </label>
-                              <label className="text-[10px] font-semibold text-[var(--teks-sekunder)]">
-                                Tempat (mis. RS/klinik)
-                                <input name="lokasi" className="mt-0.5 block rounded-lg border-2 border-[var(--garis)] bg-white px-2 py-1 text-xs" placeholder="Klinik Anugerah" />
+                              <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
+                                Tempat
+                                <input name="lokasi" className="mt-1 h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" placeholder="mis. Klinik Anugerah" />
                               </label>
-                              <button className="btn3d btn3d-coral px-3 py-1.5 text-[11px]">Simpan</button>
                             </div>
-                            <p className="mt-1.5 text-[10px] text-[var(--coral-gelap)]">
-                              🟡 Akan berstatus menunggu sampai diverifikasi kader posyandu.
-                            </p>
+                            <button className="btn3d btn3d-coral mt-2 h-[42px] w-full rounded-[13px] text-[13px]" style={{ boxShadow: "0 4px 0 var(--coral-tua)" }}>
+                              Simpan catatan
+                            </button>
                           </form>
-                        </details>
+                          <p className="mt-1.5 text-[10px] font-semibold leading-relaxed text-[var(--abu)]">
+                            Catatan Anda berstatus{" "}
+                            <span className="rounded px-1 py-0.5 font-extrabold" style={{ background: "var(--verif-muda)", color: "var(--verif-teks)" }}>🟡 menunggu</span>{" "}
+                            sampai dicek kader dengan buku KIA.
+                          </p>
+                        </div>
                       )}
-                    </div>
+                    </details>
                   );
                 })}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-      </section>
 
-      <TumbuhBagian refAnak={anak.ref} jk={anak.isi.jk} balik={`/ortu/anak/${anak.ref}`} />
+        <TumbuhBagian refAnak={anak.ref} jk={anak.isi.jk} balik={`/ortu/anak/${anak.ref}`} />
+      </div>
     </main>
   );
 }

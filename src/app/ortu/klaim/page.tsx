@@ -1,4 +1,5 @@
-import Link from "next/link";
+/* eslint-disable @next/next/no-img-element */
+import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
 import { pakaiKode } from "@/lib/klaim-actions";
 
@@ -11,48 +12,57 @@ export default async function KlaimPage({
   const { kode, galat } = await searchParams;
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-5">
-      <Link href="/ortu/anakku" className="text-xs font-bold text-[var(--teks-sekunder)]">← Anakku</Link>
-      <h1 className="font-judul mt-2 text-lg font-extrabold text-[var(--coral-gelap)]">Hubungkan Anak</h1>
+    <main>
+      <KepalaHalaman judul="Hubungkan Anak 🔗" sub="dari menu Anakku" balik="/ortu/anakku" peran="ortu" />
 
-      <div className="mt-4 space-y-2">
-        {[
-          { n: 1, t: "Minta kode QR ke kader posyandu saat kunjungan" },
-          { n: 2, t: "Pindai QR dengan kamera HP (halaman ini terbuka otomatis)" },
-          { n: 3, t: "Atau ketik kodenya sendiri di bawah" },
-        ].map((s) => (
-          <div key={s.n} className="flex items-center gap-3 rounded-xl border-2 border-[var(--coral-border)] bg-[var(--coral-muda)] px-3 py-2">
-            <span className="font-judul flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--coral)] text-xs font-bold text-white">
-              {s.n}
-            </span>
-            <span className="text-xs text-[var(--coral-gelap)]">{s.t}</span>
-          </div>
-        ))}
-      </div>
+      <div className="mx-auto max-w-md px-4 pt-4">
+        <div className="pop flex gap-1.5">
+          {[
+            { n: 1, t: "Minta kode QR ke kader" },
+            { n: 2, t: "Pindai / ketik kodenya" },
+            { n: 3, t: "Data Si Kecil muncul 🎉" },
+          ].map((s) => (
+            <div key={s.n} className="flex-1 rounded-2xl border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] px-2 py-2.5 text-center">
+              <p className="font-judul text-base font-bold" style={{ color: "#d95f38" }}>{s.n}</p>
+              <p className="text-[10px] font-semibold leading-snug text-[var(--teks-sekunder)]">{s.t}</p>
+            </div>
+          ))}
+        </div>
 
-      <form action={pakaiKode} className="pop mt-4 rounded-[var(--r-kartu)] border-2 border-[var(--krem-border)] bg-[var(--kartu)] p-5">
-        {galat && (
-          <p className="mb-3 rounded-lg bg-[var(--merah-muda)] px-3 py-2 text-xs font-semibold text-[var(--merah-teks)]">
-            {galat}
-          </p>
-        )}
-        <label className="block text-xs font-semibold text-[var(--teks-sekunder)]">
-          Kode dari kader (8 karakter)
+        <form action={pakaiKode} className="pop pop-1 mt-3.5 rounded-[26px] border-2 border-[var(--coral-pastel)] bg-[var(--kartu)] px-5 py-6 text-center">
+          <img
+            src="/gambar/bayi-duduk.png" alt="" width={64} height={64}
+            className="mx-auto h-16 w-16 object-contain"
+            style={{ animation: "floaty 5.5s ease-in-out infinite" }}
+          />
+          <p className="font-judul mt-2.5 text-[15px] font-bold text-[var(--coral-gelap)]">Masukkan kode dari kader</p>
+          {galat && (
+            <p className="mt-2.5 rounded-2xl border-2 border-[var(--merah-border)] bg-[var(--merah-muda)] px-3 py-2.5 text-left text-[11px] font-bold leading-snug text-[var(--merah-teks)]">
+              😔 {galat}
+            </p>
+          )}
           <input
             name="kode"
             defaultValue={kode ?? ""}
             autoCapitalize="characters"
-            className="mt-1 w-full rounded-[var(--r-input)] border-2 border-dashed border-[var(--coral)] bg-[var(--krem-input)] px-3 py-3 text-center font-mono text-lg font-extrabold tracking-[0.3em] uppercase focus:outline-none"
+            className="font-judul mt-2.5 h-[58px] w-full rounded-[18px] border-[2.5px] border-dashed border-[var(--coral)] bg-[#fdf9f5] text-center text-2xl font-bold uppercase text-[var(--coral-gelap)] outline-none transition-colors focus:border-[var(--coral-tua)] focus:bg-white"
+            style={{ letterSpacing: ".25em", textIndent: ".25em" }}
             placeholder="XXXXXXXX"
             maxLength={8}
           />
-        </label>
-        <button className="btn3d btn3d-coral mt-4 w-full py-3 text-sm">Hubungkan</button>
-      </form>
+          <p className="mt-2 text-[10.5px] font-semibold text-[var(--abu)]">8 karakter · huruf besar &amp; angka</p>
+          <button className="btn3d btn3d-coral mt-3.5 h-[54px] w-full rounded-[18px] text-base" style={{ boxShadow: "0 6px 0 var(--coral-tua)" }}>
+            Hubungkan
+          </button>
+        </form>
 
-      <p className="mt-3 text-center text-[11px] text-[var(--teks-sekunder)]">
-        📱 Kode dari pindai QR terisi otomatis di kotak di atas.
-      </p>
+        <div className="pop pop-2 mt-3 flex items-start gap-2.5 rounded-[18px] bg-[var(--teal-muda)] px-3.5 py-2.5">
+          <span className="shrink-0 text-[15px]">📱</span>
+          <p className="text-[10.5px] font-semibold leading-relaxed text-[var(--teal-tua)]">
+            Pindai QR dengan kamera HP juga bisa — halaman ini terbuka otomatis dengan kode sudah terisi.
+          </p>
+        </div>
+      </div>
     </main>
   );
 }

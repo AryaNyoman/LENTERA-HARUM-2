@@ -1,97 +1,165 @@
+/* eslint-disable @next/next/no-img-element */
+import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
 import { anakKlaim } from "@/lib/ortu";
 import { DOSIS_REGISTRY, UMUR_IDEAL, adaDosis, dosisTakBerlaku } from "@/lib/vaksin";
 
 const BULAN_ID = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
 
-function tambahBulanIso(iso: string, n: number): string {
+function tambahBulanIso(iso: string, n: number): Date {
   const d = new Date(iso + "T00:00:00");
   d.setMonth(d.getMonth() + n);
-  return d.toISOString().slice(0, 10);
+  return d;
+}
+function fmtPendek(d: Date): string {
+  return `${d.getDate()} ${BULAN_ID[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function statusHari(isoJatuhTempo: string): { label: string; bg: string; fg: string } {
-  const now = new Date(); now.setHours(0, 0, 0, 0);
-  const beda = Math.round((new Date(isoJatuhTempo + "T00:00:00").getTime() - now.getTime()) / 86400000);
-  if (beda < 0) return { label: `terlewat ${-beda} hari`, bg: "var(--merah-muda)", fg: "var(--merah-teks)" };
-  if (beda === 0) return { label: "hari ini 🎯", bg: "var(--teal-muda)", fg: "var(--teal-tua)" };
-  if (beda <= 14) return { label: `${beda} hari lagi`, bg: "var(--kuning-pastel)", fg: "var(--kuning-teks)" };
-  return { label: `${beda} hari lagi`, bg: "var(--bg)", fg: "var(--teks-sekunder)" };
-}
+interface Kunjungan { um: number; jt: Date; dosis: string[] }
 
-/** Jadwal ORTU: dosis yang BELUM diterima tiap anak, urut jatuh tempo. */
+/** Jadwal ORTU: dosis yang BELUM diterima, dikelompokkan per kunjungan usia (mockup b-ojadwal). */
 export default async function JadwalOrtu() {
   const user = await wajibUser("ORTU", "ADMIN");
   const daftar = await anakKlaim(user);
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+
+  const perAnak = daftar.map((a) => {
+    const kunjungan: Kunjungan[] = [];
+    for (const d of DOSIS_REGISTRY) {
+      if (dosisTakBerlaku(d.kode, a.isi.vaksin) || adaDosis(a.isi.vaksin, d.kode)) continue;
+      const um = UMUR_IDEAL[d.kode] ?? 0;
+      const k = kunjungan.find((x) => x.um === um);
+      if (k) k.dosis.push(d.nama);
+      else kunjungan.push({ um, jt: tambahBulanIso(a.isi.tglLahir, um), dosis: [d.nama] });
+    }
+    kunjungan.sort((x, y) => x.jt.getTime() - y.jt.getTime());
+    return { anak: a, kunjungan, total: kunjungan.reduce((n, k) => n + k.dosis.length, 0) };
+  });
+
+  const sub =
+    daftar.length === 1
+      ? `${daftar[0].isi.nama.split(/\s+/).slice(0, 2).join(" ")} · dosis yang belum diterima`
+      : "dosis yang belum diterima Si Kecil";
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-5">
-      <h1 className="font-judul text-lg font-extrabold text-[var(--coral-gelap)]">Jadwal Imunisasi</h1>
-      <p className="mt-0.5 text-xs text-[var(--teks-sekunder)]">
-        Dosis yang belum diterima Si Kecil — urut dari yang paling dekat.
-      </p>
+    <main>
+      <KepalaHalaman judul="Jadwal Imunisasi 📅" sub={sub} peran="ortu" />
 
-      {daftar.length === 0 && (
-        <p className="mt-5 rounded-[var(--r-kartu)] border-2 border-dashed border-[var(--garis-ortu)] bg-[var(--kartu)] p-6 text-center text-sm text-[var(--teks-sekunder)]">
-          Hubungkan anak dulu di menu <b>Anakku</b>.
-        </p>
-      )}
+      <div className="mx-auto max-w-md px-4 pt-4">
+        {daftar.length === 0 && (
+          <p className="pop rounded-[22px] border-[2.5px] border-dashed border-[#ead9c4] bg-[var(--kartu)] p-6 text-center text-sm font-semibold text-[var(--teks-sekunder)]">
+            Hubungkan anak dulu di menu <b>Anakku</b>.
+          </p>
+        )}
 
-      <div className="mt-4 space-y-4">
-        {daftar.map((a) => {
-          const belum = DOSIS_REGISTRY
-            .filter((d) => !dosisTakBerlaku(d.kode, a.isi.vaksin) && !adaDosis(a.isi.vaksin, d.kode))
-            .map((d) => ({ d, jt: tambahBulanIso(a.isi.tglLahir, UMUR_IDEAL[d.kode] ?? 0) }))
-            .sort((x, y) => x.jt.localeCompare(y.jt));
+        {perAnak.map(({ anak, kunjungan, total }) => {
+          const terlewat = kunjungan.filter((k) => k.jt.getTime() < now.getTime());
+          const mendatang = kunjungan.filter((k) => k.jt.getTime() >= now.getTime());
+          const pertamaMendatang = mendatang[0];
+          const sisaMendatang = mendatang.slice(1);
+
           return (
-            <section key={a.ref} className="rounded-[var(--r-kartu)] border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] p-4">
-              <h2 className="font-judul text-sm font-extrabold">{a.isi.nama}</h2>
-              {belum.length === 0 ? (
-                <p className="mt-2 rounded-lg bg-[var(--hijau-muda)] px-3 py-2 text-xs font-bold text-[var(--hijau-teks)]">
+            <section key={anak.ref} className="mb-5">
+              {daftar.length > 1 && (
+                <h2 className="font-judul mb-2 text-sm font-bold text-[var(--coral-gelap)]">{anak.isi.nama}</h2>
+              )}
+
+              {total === 0 ? (
+                <p className="pop rounded-[20px] bg-[var(--hijau-muda)] px-4 py-3 text-xs font-bold text-[var(--hijau-teks)]">
                   🎉 Semua dosis terjadwal sudah diterima!
                 </p>
               ) : (
                 <>
-                <p className="mt-1 rounded-xl bg-[var(--coral-muda)] px-3 py-1.5 text-[11px] font-semibold text-[var(--coral-gelap)]">
-                  {belum.length} dosis menunggu — santai, bisa dikejar! 💪
-                </p>
-                <div className="mt-2 space-y-1.5">
-                  {belum.map(({ d, jt }) => {
-                    const st = statusHari(jt);
-                    const tgl = new Date(jt + "T00:00:00");
-                    return (
-                      <div key={d.kode} className="flex items-center gap-3 rounded-xl bg-[var(--bg)] px-2.5 py-2 text-sm">
+                  <div className="pop flex items-center gap-2.5 rounded-[20px] border-2 bg-[var(--kartu)] px-3.5 py-3" style={{ borderColor: "var(--kuning-pastel)" }}>
+                    <img src="/gambar/edukasi-demam.png" alt="" width={42} height={42} className="h-[42px] w-[42px] shrink-0 object-contain" />
+                    <p className="text-[11.5px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
+                      <b style={{ color: "var(--kuning-teks)" }}>{total} dosis menunggu — santai, bisa dikejar!</b>{" "}
+                      Datang ke posyandu &amp; bawa buku KIA ya 🤗
+                    </p>
+                  </div>
+
+                  <div className="mt-3.5 flex flex-col gap-3">
+                    {terlewat.map((k, i) => {
+                      const telat = Math.round((now.getTime() - k.jt.getTime()) / 86400000);
+                      const gaya =
+                        telat <= 14
+                          ? { border: "var(--kuning-border)", stikerBg: "var(--kuning)", stikerFg: "var(--kuning-gelap)", kotakBg: "var(--kuning-muda)", fg: "var(--kuning-teks)", teks: `baru terlewat ${telat} hari!`, wiggle: true }
+                          : telat <= 45
+                            ? { border: "var(--coral-border)", stikerBg: "var(--coral)", stikerFg: "#fff", kotakBg: "var(--coral-muda)", fg: "var(--coral-gelap)", teks: `terlewat ${telat} hari`, wiggle: false }
+                            : { border: "var(--merah-border)", stikerBg: "var(--merah)", stikerFg: "#fff", kotakBg: "var(--merah-muda)", fg: "var(--merah-teks)", teks: `terlewat ${telat} hari`, wiggle: false };
+                      return (
                         <div
-                          className="font-judul flex w-11 shrink-0 flex-col items-center justify-center rounded-lg py-1 text-center"
-                          style={{ background: st.bg, color: st.fg }}
+                          key={k.um}
+                          className={`pop pop-${Math.min(i + 1, 6)} relative mt-1 rounded-[22px] border-2 bg-[var(--kartu)] px-3.5 py-3`}
+                          style={{ borderColor: gaya.border }}
                         >
-                          <span className="text-sm font-extrabold leading-none">{tgl.getDate()}</span>
-                          <span className="text-[9px] font-bold uppercase">{BULAN_ID[tgl.getMonth()]}</span>
+                          <span
+                            className="font-judul absolute -top-2.5 left-3.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+                            style={{
+                              background: gaya.stikerBg, color: gaya.stikerFg,
+                              transform: i % 2 === 0 ? "rotate(-1.5deg)" : "rotate(1.5deg)",
+                              animation: gaya.wiggle ? "wiggle 2.4s ease-in-out infinite" : undefined,
+                            }}
+                          >
+                            {gaya.teks}
+                          </span>
+                          <div className="mt-1 flex items-center gap-2.5">
+                            <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-2xl" style={{ background: gaya.kotakBg, color: gaya.fg }}>
+                              <span className="font-judul text-[15px] font-bold leading-none">{k.jt.getDate()}</span>
+                              <span className="text-[8px] font-extrabold uppercase">{BULAN_ID[k.jt.getMonth()]}</span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-judul text-[13px] font-bold" style={{ color: gaya.fg }}>
+                                {k.um === 0 ? "Saat lahir" : `Usia ${k.um} bulan`} · {k.dosis.length} dosis
+                              </p>
+                              <p className="text-[11px] font-semibold leading-snug text-[var(--teks-sekunder)]">{k.dosis.join(" · ")}</p>
+                            </div>
+                          </div>
                         </div>
-                        <span className="min-w-0 flex-1">
-                          {d.nama}
-                          <span className="ml-1 text-[11px] text-[var(--teks-sekunder)]">(usia {UMUR_IDEAL[d.kode] ?? 0} bln)</span>
-                        </span>
-                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: st.bg, color: st.fg }}>
-                          {st.label}
-                        </span>
+                      );
+                    })}
+
+                    {pertamaMendatang && (
+                      <div className="pop rounded-[22px] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-3.5 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-2xl bg-[var(--teal-muda)] text-[var(--teal-gelap)]">
+                            <span className="font-judul text-[15px] font-bold leading-none">{pertamaMendatang.jt.getDate()}</span>
+                            <span className="text-[8px] font-extrabold uppercase">{BULAN_ID[pertamaMendatang.jt.getMonth()]}</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-judul text-[13px] font-bold text-[var(--teal-gelap)]">
+                              {pertamaMendatang.um === 0 ? "Saat lahir" : `Usia ${pertamaMendatang.um} bulan`} ·{" "}
+                              {Math.round((pertamaMendatang.jt.getTime() - now.getTime()) / 86400000)} hari lagi ⏳
+                            </p>
+                            <p className="text-[11px] font-semibold leading-snug text-[var(--teks-sekunder)]">
+                              {pertamaMendatang.dosis.join(" · ")}
+                            </p>
+                          </div>
+                        </div>
+                        {sisaMendatang.length > 0 && (
+                          <p className="mt-2 border-t-[1.5px] border-dashed border-[#e2ece7] pt-2 text-[10.5px] font-semibold text-[var(--abu)]">
+                            Selanjutnya: {sisaMendatang.map((k) => `${k.dosis.join(" & ")} (${fmtPendek(k.jt)})`).join(" · ")}
+                          </p>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
+                    )}
+                  </div>
                 </>
               )}
             </section>
           );
         })}
-      </div>
 
-      {daftar.length > 0 && (
-        <p className="mt-3 rounded-xl bg-[var(--teal-muda)] px-3 py-2 text-[11px] leading-relaxed text-[var(--teal-tua)]">
-          📘 Jadwal = usia ideal. Bila terlewat jangan panik — datangi posyandu/puskesmas, ada
-          jadwal kejar. Bawa buku KIA setiap kunjungan.
-        </p>
-      )}
+        {daftar.length > 0 && (
+          <div className="pop flex items-start gap-2.5 rounded-[18px] bg-[var(--teal-muda)] px-3.5 py-2.5">
+            <span className="shrink-0 text-[15px]">📘</span>
+            <p className="text-[10.5px] font-semibold leading-relaxed text-[var(--teal-tua)]">
+              Jadwal = usia ideal. Terlewat bukan berarti gagal — ada jadwal kejar di posyandu/puskesmas.
+              Selalu bawa buku KIA ya.
+            </p>
+          </div>
+        )}
+      </div>
     </main>
   );
 }
