@@ -13,7 +13,7 @@ interface KelurahanOpsi {
 function KotakHasil({ hasil }: { hasil: HasilBuatKader }) {
   if (hasil.galat) {
     return (
-      <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-[var(--merah)]">
+      <p className="mt-3 rounded-lg bg-[var(--merah-muda)] px-3 py-2 text-xs font-semibold text-[var(--merah-teks)]">
         {hasil.galat}
       </p>
     );
@@ -42,11 +42,11 @@ export default function FormKader({ kelurahan }: { kelurahan: KelurahanOpsi[] })
   const [buka, setBuka] = useState(false);
 
   return (
-    <section className="mt-5 rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] p-4">
+    <section className="mt-5 rounded-[var(--r-kartu)] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] p-4">
       <button
         type="button"
         onClick={() => setBuka((b) => !b)}
-        className="w-full text-left text-sm font-extrabold text-[var(--teal-tua)]"
+        className="font-judul w-full text-left text-sm font-extrabold text-[var(--teal-tua)]"
       >
         + Buat Akun Kader Baru {buka ? "▴" : "▾"}
       </button>
@@ -58,7 +58,7 @@ export default function FormKader({ kelurahan }: { kelurahan: KelurahanOpsi[] })
               Nama lengkap
               <input
                 name="nama"
-                className="mt-1 w-full rounded-lg border border-[var(--garis)] px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2 text-sm"
                 placeholder="mis. Ibu Kader Seruni"
               />
             </label>
@@ -66,7 +66,7 @@ export default function FormKader({ kelurahan }: { kelurahan: KelurahanOpsi[] })
               Username (huruf kecil)
               <input
                 name="username"
-                className="mt-1 w-full rounded-lg border border-[var(--garis)] px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2 text-sm"
                 placeholder="mis. kader.seruni"
               />
             </label>
@@ -96,7 +96,7 @@ export default function FormKader({ kelurahan }: { kelurahan: KelurahanOpsi[] })
           <button
             type="submit"
             disabled={sibuk}
-            className="mt-4 rounded-xl bg-[var(--teal)] px-4 py-2 text-sm font-bold text-white hover:bg-[var(--teal-tua)] disabled:opacity-50"
+            className="btn3d btn3d-teal mt-4 px-4 py-2 text-sm disabled:opacity-50"
           >
             {sibuk ? "Membuat…" : "Buat akun kader"}
           </button>
@@ -116,7 +116,7 @@ export function TombolReset({ id }: { id: number }) {
         <input type="hidden" name="id" value={id} />
         <button
           disabled={sibuk}
-          className="rounded-lg border border-[var(--garis)] px-2.5 py-1.5 text-[11px] font-bold text-[var(--teks-sekunder)] hover:bg-[var(--bg)] disabled:opacity-50"
+          className="btn-garis border-2 border-[var(--garis)] px-2.5 py-1.5 text-[11px] text-[var(--teks-sekunder)] hover:bg-[var(--bg)] disabled:opacity-50"
         >
           Reset sandi
         </button>
@@ -126,7 +126,7 @@ export function TombolReset({ id }: { id: number }) {
           baru: <code className="rounded bg-[var(--teal-muda)] px-1 font-mono font-bold">{hasil.sandi}</code>
         </p>
       )}
-      {hasil.galat && <p className="mt-1 text-[10px] text-[var(--merah)]">{hasil.galat}</p>}
+      {hasil.galat && <p className="mt-1 text-[10px] text-[var(--merah-teks)]">{hasil.galat}</p>}
     </div>
   );
 }
