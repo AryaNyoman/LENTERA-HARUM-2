@@ -86,8 +86,17 @@ export default async function DashboardKader() {
           <KartuStat nilai={bayi} label="Bayi 0–11 bulan" img="/gambar/bayi-baru-lahir.png" border="var(--teal-pastel)" warna="var(--teal-gelap)" delay="pop-2" />
           <KartuStat nilai={baduta} label="Baduta 12–24 bln" img="/gambar/baduta-jalan.png" border="var(--kuning-pastel)" warna="#a16207" delay="pop-3" />
           <KartuStat
-            nilai={<>{idl}<span className="text-sm font-bold text-[var(--abu)]"> IDL</span> · {ibl}<span className="text-sm font-bold text-[var(--abu)]"> IBL</span></>}
-            label="IDL & IBL lengkap" img="/gambar/vaksin-vial.png"
+            nilai={
+              <span className="flex flex-col gap-1">
+                <span className="whitespace-nowrap text-[21px] leading-none">
+                  {idl} <span className="text-xs font-bold text-[var(--abu)]">IDL ✓</span>
+                </span>
+                <span className="whitespace-nowrap text-[21px] leading-none">
+                  {ibl} <span className="text-xs font-bold text-[var(--abu)]">IBL ✓</span>
+                </span>
+              </span>
+            }
+            label="Anak sudah lengkap" img="/gambar/vaksin-vial.png"
             border="var(--hijau-border)" warna="var(--hijau-teks)" stiker="target!" delay="pop-4"
           />
         </div>

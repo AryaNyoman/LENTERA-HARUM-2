@@ -52,6 +52,32 @@ export const VARIAN_MEREK: Record<string, { kode: string; merek: string }[]> = {
   ROTA2: [{ kode: "ROTA2", merek: "Rotavac" }, { kode: "ROTARIX2", merek: "Rotarix" }],
 };
 
+/** Kode varian merek → kode slot induknya (HEXA1→PENTA1, ROTARIX2→ROTA2, dst). */
+const SLOT_VARIAN: Record<string, string> = Object.fromEntries(
+  Object.entries(VARIAN_MEREK).flatMap(([slot, varian]) => varian.map((v) => [v.kode, slot])),
+);
+
+/** Usia MINIMAL (hari) sebelum satu dosis boleh dicatat — dari umur ideal,
+ *  1 bulan dihitung 28 hari (aturan pemilik: BCG/bOPV1 minimal 28 hari, dst).
+ *  Menerima kode slot maupun kode varian merek. */
+export function minUsiaHari(kode: string): number {
+  const slot = SLOT_VARIAN[kode] ?? kode;
+  return (UMUR_IDEAL[slot] ?? 0) * 28;
+}
+
+/** Tanggal paling awal (YYYY-MM-DD) satu dosis boleh diberikan utk anak lahir `tglLahir`. */
+export function minTglDosis(tglLahir: string, kode: string): string {
+  const d = new Date(tglLahir + "T00:00:00");
+  d.setDate(d.getDate() + minUsiaHari(kode));
+  return d.toISOString().slice(0, 10);
+}
+
+/** Nama tampil sebuah kode (slot atau varian merek) — untuk pesan galat. */
+export function namaKode(kode: string): string {
+  const slot = SLOT_VARIAN[kode] ?? kode;
+  return DOSIS_REGISTRY.find((d) => d.kode === slot)?.nama ?? kode;
+}
+
 /** Slot dianggap terisi bila kode slot ATAU salah satu varian mereknya terisi. */
 export function adaDosis(vaksin: Record<string, string>, slotKode: string): boolean {
   const varian = VARIAN_MEREK[slotKode];

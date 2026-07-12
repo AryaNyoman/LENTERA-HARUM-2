@@ -3,6 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { daftarOrtu } from "@/lib/akun-actions";
 import { ambilUser, rumahPeran } from "@/lib/sesi";
+import { db } from "@/lib/db";
+import InputSandi from "@/components/input-sandi";
 
 export default async function DaftarPage({
   searchParams,
@@ -12,6 +14,7 @@ export default async function DaftarPage({
   const user = await ambilUser();
   if (user) redirect(rumahPeran(user.peran));
   const { galat } = await searchParams;
+  const kelurahan = await db.kelurahan.findMany({ orderBy: { urutan: "asc" } });
 
   const inp =
     "mt-1.5 h-12 w-full rounded-2xl border-2 border-[var(--krem-border)] bg-[var(--krem-input)] px-4 text-[15px] font-semibold outline-none transition-colors focus:border-[var(--coral)]";
@@ -64,12 +67,21 @@ export default async function DaftarPage({
             <input name="noHp" inputMode="numeric" className={inp} placeholder="08…" />
           </label>
           <label className={`${lbl} mt-3`}>
+            Kelurahan tempat tinggal
+            <select name="kelurahanId" defaultValue="" className={inp}>
+              <option value="">— pilih kelurahan —</option>
+              {kelurahan.map((k) => (
+                <option key={k.id} value={k.id}>{k.nama}</option>
+              ))}
+            </select>
+          </label>
+          <label className={`${lbl} mt-3`}>
             Sandi <span className="font-semibold text-[var(--abu)]">(min. 6 karakter)</span>
-            <input name="sandi" type="password" autoComplete="new-password" className={inp} />
+            <InputSandi name="sandi" autoComplete="new-password" className={inp.replace("mt-1.5 ", "")} />
           </label>
           <label className={`${lbl} mt-3`}>
             Ulangi sandi
-            <input name="ulang" type="password" autoComplete="new-password" className={inp} />
+            <InputSandi name="ulang" autoComplete="new-password" className={inp.replace("mt-1.5 ", "")} />
           </label>
           <button
             type="submit"

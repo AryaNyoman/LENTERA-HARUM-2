@@ -53,9 +53,13 @@ export async function daftarOrtu(formData: FormData): Promise<void> {
   const noHp = normHp(String(formData.get("noHp") ?? ""));
   const sandi = String(formData.get("sandi") ?? "");
   const ulang = String(formData.get("ulang") ?? "");
+  const kelurahanId = Number(formData.get("kelurahanId") ?? 0) || 0;
 
   if (nama.length < 3) redirect("/daftar?galat=Nama+minimal+3+huruf");
   if (!/^08\d{8,}$/.test(noHp)) redirect("/daftar?galat=No+HP+tidak+valid+(mulai+08,+min+10+digit)");
+  if (!kelurahanId || !(await db.kelurahan.findUnique({ where: { id: kelurahanId } }))) {
+    redirect("/daftar?galat=Pilih+kelurahan+tempat+tinggal");
+  }
   if (sandi.length < 6) redirect("/daftar?galat=Sandi+minimal+6+karakter");
   if (sandi !== ulang) redirect("/daftar?galat=Ulangi+sandi+tidak+sama");
   if (await db.user.findUnique({ where: { username: noHp } })) {
@@ -63,7 +67,7 @@ export async function daftarOrtu(formData: FormData): Promise<void> {
   }
 
   const user = await db.user.create({
-    data: { peran: "ORTU", nama, username: noHp, noHp, sandiHash: await bcrypt.hash(sandi, 10) },
+    data: { peran: "ORTU", nama, username: noHp, noHp, kelurahanId, sandiHash: await bcrypt.hash(sandi, 10) },
   });
   await buatSesi(user.id);
   await catat(user.id, "DAFTAR_ORTU");

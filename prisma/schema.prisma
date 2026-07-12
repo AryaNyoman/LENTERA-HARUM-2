@@ -22,6 +22,7 @@ model Kelurahan {
   nama     String
   urutan   Int        @default(0)
   posyandu Posyandu[]
+  warga    User[]
 }
 
 /// `nama` = nama lingkungan persis master SIMPUS — dipakai di kolom "Posyandu" saat export
@@ -54,6 +55,8 @@ model User {
   sandiHash       String
   aktif           Boolean        @default(true)
   perluGantiSandi Boolean        @default(false)
+  kelurahanId     Int? // domisili ortu (dipilih saat daftar) — mengunci kelurahan di form anak
+  kelurahan       Kelurahan?     @relation(fields: [kelurahanId], references: [id])
   dibuatPada      DateTime       @default(now())
   diubahPada      DateTime       @updatedAt
   binaan          UserPosyandu[]

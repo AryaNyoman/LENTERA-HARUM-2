@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { segel, buka, type IsiAnak } from "@/lib/brankas";
 import { wajibUser } from "@/lib/sesi";
 import { binaanIds } from "@/lib/anak";
-import { DOSIS_REGISTRY, VARIAN_MEREK } from "@/lib/vaksin";
+import { DOSIS_REGISTRY, VARIAN_MEREK, minTglDosis, minUsiaHari, namaKode } from "@/lib/vaksin";
 
 /** Semua kode input dosis yang sah (kode slot + seluruh varian merek). */
 const KODE_SAH = new Set<string>([
@@ -43,8 +43,12 @@ function bacaFormAnak(formData: FormData, balik: string): { isi: IsiAnak; posyan
     const tgl = String(v).trim();
     if (!tgl) continue;
     if (!KODE_SAH.has(kode)) continue;
-    if (Number.isNaN(Date.parse(tgl))) galatKe(balik, `Tanggal ${kode} tidak valid.`);
-    if (Date.parse(tgl) < Date.parse(tglLahir)) galatKe(balik, `Tanggal ${kode} mendahului tanggal lahir.`);
+    if (Number.isNaN(Date.parse(tgl))) galatKe(balik, `Tanggal ${namaKode(kode)} tidak valid.`);
+    if (Date.parse(tgl) < Date.parse(tglLahir)) galatKe(balik, `Tanggal ${namaKode(kode)} mendahului tanggal lahir.`);
+    // usia minimal per dosis (1 bulan = 28 hari) — cegah salah ketik tanggal terlalu dini
+    if (tgl < minTglDosis(tglLahir, kode)) {
+      galatKe(balik, `Tanggal ${namaKode(kode)} terlalu dini — dosis ini minimal usia ${minUsiaHari(kode)} hari.`);
+    }
     vaksin[kode] = tgl;
   }
 
@@ -87,6 +91,13 @@ export async function simpanAnakOrtu(formData: FormData): Promise<void> {
 
   const pos = await db.posyandu.findUnique({ where: { id: posyanduId } });
   if (!pos) galatKe(balik, "Pilih posyandu.");
+  // identitas ortu dikunci dari akun (bukan isian bebas); domisili terisi sekali dari pilihan pertama
+  isi.namaOrtu = user.nama;
+  const akun = await db.user.findUnique({ where: { id: user.id }, select: { kelurahanId: true, noHp: true } });
+  if (!isi.noHp) isi.noHp = akun?.noHp || user.username;
+  if (akun && akun.kelurahanId == null) {
+    await db.user.update({ where: { id: user.id }, data: { kelurahanId: pos.kelurahanId } });
+  }
   const tersegel = segel(isi);
 
   // create + klaim digabung (nested) — hemat satu bolak-balik DB per submit
@@ -128,6 +139,22 @@ export async function verifikasiAnak(formData: FormData): Promise<void> {
   if (!ada || !ids.includes(ada.posyanduId)) redirect("/kader/daftar-bayi");
   await db.anakBaru.update({ where: { id }, data: { terverifikasi: true } });
   await db.logAktivitas.create({ data: { userId: user.id, aksi: "ANAK_DIVERIFIKASI", detail: `b:${id}` } });
+  redirect(`/kader/anak/b:${id}`);
+}
+
+/** Kader/admin membatalkan status setor (DIEKSPOR → DRAF) — untuk anak yang keliru
+ *  ikut export (mis. data uji) supaya bisa diedit/dihapus lagi. */
+export async function batalkanSetor(formData: FormData): Promise<void> {
+  const user = await wajibUser("KADER", "ADMIN");
+  const id = Number(formData.get("id") ?? 0);
+  const ada = await db.anakBaru.findUnique({ where: { id } });
+  const ids = await binaanIds(user);
+  if (!ada || !ids.includes(ada.posyanduId)) redirect("/kader/daftar-bayi");
+  if (ada.status !== "DIEKSPOR") {
+    redirect(`/kader/anak/b:${id}?galat=${encodeURIComponent("Hanya anak berstatus 'sudah disetor' yang bisa dibatalkan.")}`);
+  }
+  await db.anakBaru.update({ where: { id }, data: { status: "DRAF" } });
+  await db.logAktivitas.create({ data: { userId: user.id, aksi: "SETOR_DIBATALKAN", detail: `b:${id}` } });
   redirect(`/kader/anak/b:${id}`);
 }
 

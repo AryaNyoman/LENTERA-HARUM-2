@@ -6,7 +6,7 @@ import { ambilAnakOrtu } from "@/lib/ortu";
 import { fmtTglId, hitungUsiaBulan, labelUsia } from "@/lib/anak";
 import {
   DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK,
-  adaDosis, dosisTakBerlaku, lengkap, SYARAT_IDL, SYARAT_IBL,
+  adaDosis, dosisTakBerlaku, lengkap, minTglDosis, SYARAT_IDL, SYARAT_IBL,
 } from "@/lib/vaksin";
 import TumbuhBagian from "@/components/tumbuh-bagian";
 import InputTanggal from "@/components/input-tanggal";
@@ -243,7 +243,7 @@ export default async function DetailAnakOrtu({
                             <div className="mt-1.5 grid grid-cols-2 gap-2">
                               <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
                                 Tanggal
-                                <InputTanggal name="tgl" bungkus="relative mt-1 block" className="h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" />
+                                <InputTanggal name="tgl" min={minTglDosis(anak.isi.tglLahir, d.kode)} bungkus="relative mt-1 block" className="h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" />
                               </label>
                               <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
                                 Tempat

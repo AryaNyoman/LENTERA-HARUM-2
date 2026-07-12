@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { simpanAnakBaru } from "@/lib/anak-actions";
-import { DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK } from "@/lib/vaksin";
+import { DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK, minTglDosis } from "@/lib/vaksin";
 import type { IsiAnak } from "@/lib/brankas";
 import InputTanggal from "@/components/input-tanggal";
 
@@ -36,6 +36,8 @@ export default function FormAnak({
   aksen = "var(--teal)",
   aksenTua = "var(--teal-tua)",
   tema = "kader",
+  kunciKelurahan,
+  namaOrtuTetap,
 }: {
   posyandu: PosyanduOpsi[];
   idEdit?: number;
@@ -50,14 +52,22 @@ export default function FormAnak({
   aksenTua?: string;
   /** Tema border/latar input mengikuti sisi pemakai. */
   tema?: "kader" | "ortu";
+  /** Kunci kelurahan ke domisili ortu (nama kelurahan) — pilihan posyandu ikut menyempit. */
+  kunciKelurahan?: string;
+  /** Kunci "Nama orang tua" ke nama akun ortu (tetap terkirim sebagai field form). */
+  namaOrtuTetap?: string;
 }) {
   const [merek, setMerek] = useState<Record<string, string>>(() => merekAwal(awal?.vaksin ?? {}));
   const [tglLahir, setTglLahir] = useState(awal?.tglLahir ?? "");
 
   // pilih kelurahan dulu → daftar posyandu menyempit (tidak panjang sekali)
   const daftarKelurahan = [...new Set(posyandu.map((p) => p.kelurahan))];
+  // kunci hanya berlaku bila kelurahan itu memang punya posyandu aktif
+  if (kunciKelurahan && !daftarKelurahan.includes(kunciKelurahan)) kunciKelurahan = undefined;
   const kelurahanAwal =
-    posyandu.find((p) => p.id === awal?.posyanduId)?.kelurahan ?? daftarKelurahan[0] ?? "";
+    kunciKelurahan ??
+    posyandu.find((p) => p.id === awal?.posyanduId)?.kelurahan ??
+    daftarKelurahan[0] ?? "";
   const [kelurahan, setKelurahan] = useState(kelurahanAwal);
   const posyanduTersaring = posyandu.filter((p) => p.kelurahan === kelurahan);
   const [posyanduId, setPosyanduId] = useState<number>(
@@ -126,20 +136,32 @@ export default function FormAnak({
         </div>
         <label className={`${lbl} mt-3`}>
           Kelurahan {wajib}
-          <select
-            value={kelurahan}
-            onChange={(e) => {
-              setKelurahan(e.target.value);
-              const pertama = posyandu.find((p) => p.kelurahan === e.target.value);
-              if (pertama) setPosyanduId(pertama.id);
-            }}
-            className={`${inp} min-w-0`}
-            style={inpStyle}
-          >
-            {daftarKelurahan.map((k) => (
-              <option key={k} value={k}>{k}</option>
-            ))}
-          </select>
+          {kunciKelurahan ? (
+            <span
+              className="mt-1.5 flex h-[46px] w-full items-center justify-between rounded-[14px] border-2 px-3.5 text-base font-semibold text-[var(--teks-sekunder)]"
+              style={{ borderColor: garis, background: latar }}
+            >
+              {kunciKelurahan}
+              <span className="font-judul rounded-full px-2 py-0.5 text-[9.5px] font-bold" style={{ background: "var(--teal-muda)", color: "var(--teal-gelap)" }}>
+                sesuai domisili Anda
+              </span>
+            </span>
+          ) : (
+            <select
+              value={kelurahan}
+              onChange={(e) => {
+                setKelurahan(e.target.value);
+                const pertama = posyandu.find((p) => p.kelurahan === e.target.value);
+                if (pertama) setPosyanduId(pertama.id);
+              }}
+              className={`${inp} min-w-0`}
+              style={inpStyle}
+            >
+              {daftarKelurahan.map((k) => (
+                <option key={k} value={k}>{k}</option>
+              ))}
+            </select>
+          )}
         </label>
         <label className={`${lbl} mt-3`}>
           Posyandu {wajib}{" "}
@@ -159,7 +181,14 @@ export default function FormAnak({
         <div className="mt-3 grid grid-cols-2 gap-2.5">
           <label className={`${lbl} min-w-0`}>
             Nama orang tua
-            <input name="namaOrtu" defaultValue={awal?.namaOrtu} className={inp} style={inpStyle} />
+            <input
+              name="namaOrtu"
+              defaultValue={namaOrtuTetap ?? awal?.namaOrtu}
+              readOnly={Boolean(namaOrtuTetap)}
+              className={`${inp} ${namaOrtuTetap ? "text-[var(--teks-sekunder)]" : ""}`}
+              style={inpStyle}
+              title={namaOrtuTetap ? "Terisi otomatis dari akun Anda" : undefined}
+            />
           </label>
           <label className={`${lbl} min-w-0`}>
             No HP ortu
@@ -215,7 +244,7 @@ export default function FormAnak({
                         <InputTanggal
                           key={`tgl-${kodeAktif}`}
                           name={`vaksin__${kodeAktif}`}
-                          min={tglLahir || undefined}
+                          min={tglLahir ? minTglDosis(tglLahir, kodeAktif) : undefined}
                           defaultValue={awal?.vaksin?.[kodeAktif] ?? ""}
                           bungkus="relative inline-block w-[150px] shrink-0"
                           className={inpTgl}
@@ -248,7 +277,7 @@ export default function FormAnak({
                       <InputTanggal
                         key={`tgl-${kodeAktif}`}
                         name={`vaksin__${kodeAktif}`}
-                        min={tglLahir || undefined}
+                        min={tglLahir ? minTglDosis(tglLahir, kodeAktif) : undefined}
                         defaultValue={awal?.vaksin?.[kodeAktif] ?? ""}
                         bungkus="relative mt-1.5 block"
                         className="h-[42px] w-full rounded-xl border-2 px-2.5 text-sm font-semibold outline-none"

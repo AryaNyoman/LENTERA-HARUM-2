@@ -12,14 +12,19 @@ export default async function OrtuAnakBaruPage({
 }: {
   searchParams: Promise<{ galat?: string }>;
 }) {
-  await wajibUser("ORTU");
+  const user = await wajibUser("ORTU");
   const { galat } = await searchParams;
 
-  const posyandu = await db.posyandu.findMany({
-    where: { aktif: true },
-    include: { kelurahan: true },
-    orderBy: { id: "asc" },
-  });
+  const [posyandu, akun] = await Promise.all([
+    db.posyandu.findMany({
+      where: { aktif: true },
+      include: { kelurahan: true },
+      orderBy: { id: "asc" },
+    }),
+    db.user.findUnique({ where: { id: user.id }, include: { kelurahan: true } }),
+  ]);
+  // kelurahan dikunci ke domisili ortu; ortu lama (belum punya domisili) tetap bebas memilih
+  const kunciKelurahan = akun?.kelurahan?.nama;
 
   return (
     <main>
@@ -44,6 +49,8 @@ export default async function OrtuAnakBaruPage({
           aksen="var(--coral)"
           aksenTua="var(--coral-gelap)"
           tema="ortu"
+          kunciKelurahan={kunciKelurahan}
+          namaOrtuTetap={user.nama}
           catatan={
             <>
               Anak akan berstatus <b>belum diverifikasi</b> sampai kader posyandu memeriksanya —

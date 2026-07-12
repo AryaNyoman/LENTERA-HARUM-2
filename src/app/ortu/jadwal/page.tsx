@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import KepalaHalaman from "@/components/kepala-halaman";
+import PilihAnak from "@/components/pilih-anak";
 import { wajibUser } from "@/lib/sesi";
 import { anakKlaim } from "@/lib/ortu";
 import { DOSIS_REGISTRY, UMUR_IDEAL, adaDosis, dosisTakBerlaku } from "@/lib/vaksin";
@@ -17,13 +18,20 @@ function fmtPendek(d: Date): string {
 
 interface Kunjungan { um: number; jt: Date; dosis: string[] }
 
-/** Jadwal ORTU: dosis yang BELUM diterima, dikelompokkan per kunjungan usia (mockup b-ojadwal). */
-export default async function JadwalOrtu() {
+/** Jadwal ORTU: dosis yang BELUM diterima, dikelompokkan per kunjungan usia (mockup b-ojadwal).
+ *  Punya >1 anak? Pilih anaknya dulu lewat pil — satu layar satu anak, biar simpel. */
+export default async function JadwalOrtu({
+  searchParams,
+}: {
+  searchParams: Promise<{ anak?: string }>;
+}) {
   const user = await wajibUser("ORTU", "ADMIN");
+  const { anak: anakParam } = await searchParams;
   const daftar = await anakKlaim(user);
   const now = new Date(); now.setHours(0, 0, 0, 0);
 
-  const perAnak = daftar.map((a) => {
+  const terpilih = daftar.find((a) => a.ref === anakParam) ?? daftar[0];
+  const perAnak = (terpilih ? [terpilih] : []).map((a) => {
     const kunjungan: Kunjungan[] = [];
     for (const d of DOSIS_REGISTRY) {
       if (dosisTakBerlaku(d.kode, a.isi.vaksin) || adaDosis(a.isi.vaksin, d.kode)) continue;
@@ -36,10 +44,9 @@ export default async function JadwalOrtu() {
     return { anak: a, kunjungan, total: kunjungan.reduce((n, k) => n + k.dosis.length, 0) };
   });
 
-  const sub =
-    daftar.length === 1
-      ? `${daftar[0].isi.nama.split(/\s+/).slice(0, 2).join(" ")} · dosis yang belum diterima`
-      : "dosis yang belum diterima Si Kecil";
+  const sub = terpilih
+    ? `${terpilih.isi.nama.split(/\s+/).slice(0, 2).join(" ")} · dosis yang belum diterima`
+    : "dosis yang belum diterima Si Kecil";
 
   return (
     <main>
@@ -52,6 +59,8 @@ export default async function JadwalOrtu() {
           </p>
         )}
 
+        {terpilih && <PilihAnak daftar={daftar} aktifRef={terpilih.ref} dasar="/ortu/jadwal" />}
+
         {perAnak.map(({ anak, kunjungan, total }) => {
           const terlewat = kunjungan.filter((k) => k.jt.getTime() < now.getTime());
           const mendatang = kunjungan.filter((k) => k.jt.getTime() >= now.getTime());
@@ -60,10 +69,6 @@ export default async function JadwalOrtu() {
 
           return (
             <section key={anak.ref} className="mb-5">
-              {daftar.length > 1 && (
-                <h2 className="font-judul mb-2 text-sm font-bold text-[var(--coral-gelap)]">{anak.isi.nama}</h2>
-              )}
-
               {total === 0 ? (
                 <p className="pop rounded-[20px] bg-[var(--hijau-muda)] px-4 py-3 text-xs font-bold text-[var(--hijau-teks)]">
                   🎉 Semua dosis terjadwal sudah diterima!

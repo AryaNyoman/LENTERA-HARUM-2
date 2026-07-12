@@ -8,7 +8,7 @@ import {
   DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK,
   adaDosis, dosisTakBerlaku, lengkap, SYARAT_IDL, SYARAT_IBL,
 } from "@/lib/vaksin";
-import { hapusAnakBaru, verifikasiAnak } from "@/lib/anak-actions";
+import { batalkanSetor, hapusAnakBaru, verifikasiAnak } from "@/lib/anak-actions";
 import { daftarCentang, verifikasiCentang } from "@/lib/centang-actions";
 import TumbuhBagian from "@/components/tumbuh-bagian";
 
@@ -142,6 +142,19 @@ export default async function DetailAnak({
             </div>
           </div>
 
+          {anak.sumber === "BARU" && anak.status === "DIEKSPOR" && (
+            <div className="mx-3 mt-1 flex flex-wrap items-center gap-2 rounded-2xl px-3 py-2.5" style={{ background: "var(--kuning-muda)" }}>
+              <p className="min-w-[150px] flex-1 text-[10.5px] font-semibold leading-snug" style={{ color: "var(--kuning-teks)" }}>
+                Sudah disetor — terkunci dari edit/hapus. Keliru ikut export (mis. data uji)?
+              </p>
+              <form action={batalkanSetor}>
+                <input type="hidden" name="id" value={anak.id} />
+                <button className="btn-garis h-9 rounded-xl border-2 px-3 text-[11px]" style={{ borderColor: "var(--kuning-border)", color: "var(--kuning-teks)" }}>
+                  ↩ Batalkan setor (jadikan draf)
+                </button>
+              </form>
+            </div>
+          )}
           {anak.sumber === "BARU" ? (
             <div className="flex gap-2 p-3">
               <Link href={`/kader/anak-baru?ref=b:${anak.id}`} className="btn3d btn3d-teal flex h-[42px] flex-1 items-center justify-center rounded-[13px] text-[12.5px]" style={{ boxShadow: "0 4px 0 var(--teal-tua)" }}>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { masuk } from "@/lib/akun-actions";
 import { ambilUser, rumahPeran } from "@/lib/sesi";
+import InputSandi from "@/components/input-sandi";
 
 export default async function LoginPage({
   searchParams,
@@ -59,7 +60,7 @@ export default async function LoginPage({
           </label>
           <label className="mt-3.5 block text-[12.5px] font-extrabold text-[var(--teks-3)]">
             Sandi
-            <input name="sandi" type="password" autoComplete="current-password" className={inp} placeholder="••••••••" />
+            <InputSandi name="sandi" autoComplete="current-password" className={inp.replace("mt-1.5 ", "")} placeholder="••••••••" />
           </label>
           <button
             type="submit"

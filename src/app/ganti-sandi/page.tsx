@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { gantiSandi } from "@/lib/akun-actions";
 import { ambilUser } from "@/lib/sesi";
+import InputSandi from "@/components/input-sandi";
 
 export default async function GantiSandiPage({
   searchParams,
@@ -51,15 +52,15 @@ export default async function GantiSandiPage({
           )}
           <label className={lbl}>
             Sandi sekarang
-            <input name="lama" type="password" autoComplete="current-password" className={inp} />
+            <InputSandi name="lama" autoComplete="current-password" className={inp.replace("mt-1.5 ", "")} />
           </label>
           <label className={`${lbl} mt-3`}>
             Sandi baru <span className="font-semibold text-[var(--abu)]">(min. 6 karakter)</span>
-            <input name="baru" type="password" autoComplete="new-password" className={inp} />
+            <InputSandi name="baru" autoComplete="new-password" className={inp.replace("mt-1.5 ", "")} />
           </label>
           <label className={`${lbl} mt-3`}>
             Ulangi sandi baru
-            <input name="ulang" type="password" autoComplete="new-password" className={inp} />
+            <InputSandi name="ulang" autoComplete="new-password" className={inp.replace("mt-1.5 ", "")} />
           </label>
           <button
             type="submit"

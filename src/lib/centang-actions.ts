@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { wajibUser } from "@/lib/sesi";
 import { ambilAnak } from "@/lib/anak";
 import { ambilAnakOrtu } from "@/lib/ortu";
-import { DOSIS_REGISTRY, adaDosis } from "@/lib/vaksin";
+import { DOSIS_REGISTRY, adaDosis, minTglDosis, minUsiaHari, namaKode } from "@/lib/vaksin";
 
 function refKe(ref: string): { anakSimpusId: number | null; anakBaruId: number | null } | null {
   const m = /^([sb]):(\d+)$/.exec(ref);
@@ -31,6 +31,11 @@ export async function tandaiOrtu(formData: FormData): Promise<void> {
   if (adaDosis(anak.isi.vaksin, kode)) redirect(balik); // sudah resmi — tak perlu centang
   if (Number.isNaN(Date.parse(tgl)) || Date.parse(tgl) < Date.parse(anak.isi.tglLahir)) {
     redirect(balik + "?galat=" + encodeURIComponent("Tanggal centang tidak valid."));
+  }
+  if (tgl < minTglDosis(anak.isi.tglLahir, kode)) {
+    redirect(balik + "?galat=" + encodeURIComponent(
+      `Tanggal ${namaKode(kode)} terlalu dini — dosis ini minimal usia ${minUsiaHari(kode)} hari.`,
+    ));
   }
 
   const tempat = refKe(ref)!;

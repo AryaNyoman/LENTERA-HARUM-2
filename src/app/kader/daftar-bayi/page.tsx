@@ -2,8 +2,9 @@
 import Link from "next/link";
 import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
+import type { AnakView } from "@/lib/anak";
 import { ambilAnakBinaan, hitungUsiaBulan, kelompokUsia, labelUsia } from "@/lib/anak";
-import { DOSIS_REGISTRY, adaDosis, dosisTakBerlaku } from "@/lib/vaksin";
+import { DOSIS_REGISTRY, adaDosis, dosisTakBerlaku, lengkap, SYARAT_IDL, SYARAT_IBL } from "@/lib/vaksin";
 
 const FILTER = [
   { u: "", label: "Semua" },
@@ -33,6 +34,88 @@ export default async function DaftarBayi({
     );
   });
   const perluVerif = semua.filter((a) => a.olehOrtu && !a.terverifikasi).length;
+
+  // Kelompokkan: isian ortu belum diverifikasi PALING ATAS (sorotan), lalu anak biasa,
+  // lalu yang sudah IDL/IBL dilipat di bawah (tak butuh perhatian harian).
+  const grupVerif = daftar.filter((a) => a.olehOrtu && !a.terverifikasi);
+  const grupSelesai = daftar.filter(
+    (a) => !(a.olehOrtu && !a.terverifikasi) &&
+      (lengkap(a.isi.vaksin, SYARAT_IDL) || lengkap(a.isi.vaksin, SYARAT_IBL)),
+  );
+  const grupBiasa = daftar.filter((a) => !grupVerif.includes(a) && !grupSelesai.includes(a));
+
+  const kartuAnak = (a: AnakView, i: number) => {
+    const usia = hitungUsiaBulan(a.isi.tglLahir, now);
+    const relevan = DOSIS_REGISTRY.filter((d) => !dosisTakBerlaku(d.kode, a.isi.vaksin));
+    const sudah = relevan.filter((d) => adaDosis(a.isi.vaksin, d.kode)).length;
+    const persen = Math.round((sudah / relevan.length) * 100);
+    const gradasi = persen >= 100 ? "linear-gradient(90deg,#3b9e4d,#3b9e4d)" : persen < 25 ? "linear-gradient(90deg,#e8704a,#f2b705)" : "linear-gradient(90deg,#f2b705,#3b9e4d)";
+    const warnaAngka = persen >= 100 ? "var(--hijau-teks)" : persen < 25 ? "#d95f38" : "#a16207";
+    const perluV = a.olehOrtu && !a.terverifikasi;
+    const belumSetor = a.sumber === "BARU" && a.status === "DRAF";
+    const rot = i % 2 === 0 ? "rotate(2deg)" : "rotate(-2deg)";
+    return (
+      <Link
+        key={a.ref}
+        href={`/kader/anak/${a.ref}`}
+        className="pop relative mt-1 flex items-center gap-3 rounded-[22px] border-2 bg-[var(--kartu)] p-3.5 transition-transform active:scale-[.97]"
+        style={{ borderColor: perluV ? "var(--verif-garis)" : "var(--garis-kader)" }}
+      >
+        <span className="absolute -top-2.5 right-3.5 flex gap-1.5">
+          {a.olehOrtu && (
+            <span
+              className="font-judul rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+              style={
+                a.terverifikasi
+                  ? { background: "var(--teal-muda)", color: "var(--teal-gelap)", border: "1.5px solid var(--teal-pastel)", transform: "rotate(-1.5deg)" }
+                  : { background: "var(--verif)", color: "var(--verif-pekat)", transform: rot, boxShadow: "0 3px 8px rgba(242,183,5,.35)" }
+              }
+            >
+              {a.terverifikasi ? "diisi ortu ✓" : "diisi ortu · perlu verifikasi"}
+            </span>
+          )}
+          {belumSetor && !perluV && (
+            <span
+              className="font-judul rounded-full bg-[var(--coral)] px-2.5 py-0.5 text-[10px] font-bold text-white"
+              style={{ transform: rot, boxShadow: "0 3px 8px rgba(232,112,74,.3)" }}
+            >
+              belum disetor
+            </span>
+          )}
+        </span>
+        <div
+          className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full"
+          style={
+            perluV
+              ? { background: "var(--verif-muda)", border: "3px solid var(--verif)" }
+              : a.isi.jk === "P"
+                ? { background: "var(--coral-muda)", border: "3px solid var(--coral)" }
+                : { background: "var(--teal-muda)", border: "3px solid var(--teal)" }
+          }
+        >
+          <img src={a.isi.jk === "P" ? "/gambar/anak-perempuan.png" : "/gambar/anak-laki.png"} alt="" width={44} height={44} className="h-11 w-11 object-contain" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-judul truncate text-base font-bold">{a.isi.nama}</p>
+          <p className="truncate text-[11px] font-semibold text-[var(--abu)]">
+            {a.isi.jk === "P" ? "Perempuan" : "Laki-laki"} · {labelUsia(usia)}
+            {a.isi.namaOrtu && <> · ortu: {a.isi.namaOrtu}</>}
+          </p>
+          <div className="mt-1.5 flex items-center gap-2">
+            <div className="h-[9px] flex-1 overflow-hidden rounded-full bg-[#f0f5f2]">
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${persen}%`, background: gradasi, transformOrigin: "left", animation: "slideBar .8s .3s both" }}
+              />
+            </div>
+            <span className="font-judul shrink-0 text-[11px] font-bold" style={{ color: warnaAngka }}>
+              {sudah}/{relevan.length}
+            </span>
+          </div>
+        </div>
+      </Link>
+    );
+  };
 
   return (
     <main>
@@ -116,78 +199,34 @@ export default async function DaftarBayi({
               </p>
             </div>
           )}
-          {daftar.map((a, i) => {
-            const usia = hitungUsiaBulan(a.isi.tglLahir, now);
-            const relevan = DOSIS_REGISTRY.filter((d) => !dosisTakBerlaku(d.kode, a.isi.vaksin));
-            const sudah = relevan.filter((d) => adaDosis(a.isi.vaksin, d.kode)).length;
-            const persen = Math.round((sudah / relevan.length) * 100);
-            const gradasi = persen >= 100 ? "linear-gradient(90deg,#3b9e4d,#3b9e4d)" : persen < 25 ? "linear-gradient(90deg,#e8704a,#f2b705)" : "linear-gradient(90deg,#f2b705,#3b9e4d)";
-            const warnaAngka = persen >= 100 ? "var(--hijau-teks)" : persen < 25 ? "#d95f38" : "#a16207";
-            const perluV = a.olehOrtu && !a.terverifikasi;
-            const belumSetor = a.sumber === "BARU" && a.status === "DRAF";
-            const rot = i % 2 === 0 ? "rotate(2deg)" : "rotate(-2deg)";
-            return (
-              <Link
-                key={a.ref}
-                href={`/kader/anak/${a.ref}`}
-                className="pop relative mt-1 flex items-center gap-3 rounded-[22px] border-2 bg-[var(--kartu)] p-3.5 transition-transform active:scale-[.97]"
-                style={{ borderColor: perluV ? "var(--verif-garis)" : "var(--garis-kader)" }}
-              >
-                <span className="absolute -top-2.5 right-3.5 flex gap-1.5">
-                  {a.olehOrtu && (
-                    <span
-                      className="font-judul rounded-full px-2.5 py-0.5 text-[10px] font-bold"
-                      style={
-                        a.terverifikasi
-                          ? { background: "var(--teal-muda)", color: "var(--teal-gelap)", border: "1.5px solid var(--teal-pastel)", transform: "rotate(-1.5deg)" }
-                          : { background: "var(--verif)", color: "var(--verif-pekat)", transform: rot, boxShadow: "0 3px 8px rgba(242,183,5,.35)" }
-                      }
-                    >
-                      {a.terverifikasi ? "diisi ortu ✓" : "diisi ortu · perlu verifikasi"}
-                    </span>
-                  )}
-                  {belumSetor && !perluV && (
-                    <span
-                      className="font-judul rounded-full bg-[var(--coral)] px-2.5 py-0.5 text-[10px] font-bold text-white"
-                      style={{ transform: rot, boxShadow: "0 3px 8px rgba(232,112,74,.3)" }}
-                    >
-                      belum disetor
-                    </span>
-                  )}
+          {grupVerif.length > 0 && (
+            <section>
+              <p className="font-judul mb-1 text-[11px] font-bold tracking-wide" style={{ color: "var(--verif-teks)" }}>
+                🟡 MENUNGGU VERIFIKASI ({grupVerif.length})
+              </p>
+              <div className="flex flex-col gap-3">{grupVerif.map(kartuAnak)}</div>
+            </section>
+          )}
+
+          {grupBiasa.length > 0 && (
+            <div className="flex flex-col gap-3">{grupBiasa.map(kartuAnak)}</div>
+          )}
+
+          {grupSelesai.length > 0 && (
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center gap-2.5 rounded-2xl border-2 border-[var(--hijau-border)] bg-[var(--hijau-muda)] px-3.5 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="text-base">✅</span>
+                <span className="font-judul min-w-0 flex-1 text-[13px] font-bold text-[var(--hijau-teks)]">
+                  Sudah IDL / IBL ({grupSelesai.length})
                 </span>
-                <div
-                  className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full"
-                  style={
-                    perluV
-                      ? { background: "var(--verif-muda)", border: "3px solid var(--verif)" }
-                      : a.isi.jk === "P"
-                        ? { background: "var(--coral-muda)", border: "3px solid var(--coral)" }
-                        : { background: "var(--teal-muda)", border: "3px solid var(--teal)" }
-                  }
-                >
-                  <img src={a.isi.jk === "P" ? "/gambar/anak-perempuan.png" : "/gambar/anak-laki.png"} alt="" width={44} height={44} className="h-11 w-11 object-contain" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-judul truncate text-base font-bold">{a.isi.nama}</p>
-                  <p className="truncate text-[11px] font-semibold text-[var(--abu)]">
-                    {a.isi.jk === "P" ? "Perempuan" : "Laki-laki"} · {labelUsia(usia)}
-                    {a.isi.namaOrtu && <> · ortu: {a.isi.namaOrtu}</>}
-                  </p>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <div className="h-[9px] flex-1 overflow-hidden rounded-full bg-[#f0f5f2]">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${persen}%`, background: gradasi, transformOrigin: "left", animation: "slideBar .8s .3s both" }}
-                      />
-                    </div>
-                    <span className="font-judul shrink-0 text-[11px] font-bold" style={{ color: warnaAngka }}>
-                      {sudah}/{relevan.length}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+                <span className="font-judul shrink-0 text-xs font-bold text-[var(--hijau-teks)]">
+                  <span className="group-open:hidden">buka ▾</span>
+                  <span className="hidden group-open:inline">tutup ▴</span>
+                </span>
+              </summary>
+              <div className="mt-2 flex flex-col gap-3">{grupSelesai.map(kartuAnak)}</div>
+            </details>
+          )}
 
           <div className="pop rounded-[22px] border-[2.5px] border-dashed border-[#cfe2da] p-4 text-center">
             <img src="/gambar/puskesmas.png" alt="" width={46} height={46} className="mx-auto mb-1.5 h-[46px] w-[46px] object-contain" />
