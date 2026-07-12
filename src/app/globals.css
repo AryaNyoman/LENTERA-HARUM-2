@@ -2,7 +2,8 @@
 
 /* ═══ Warna dasar SIMPUS-POSYANDU ═══
    Teal = identitas keluarga SIMPUS (dipakai app Kader & SIMPUS petugas).
-   Coral = aksen sisi orang tua (warisan IMUN-KU). */
+   Coral = aksen sisi orang tua (warisan IMUN-KU).
+   Arah "1b Ceria Posyandu": token turunan di bawah — token lama TIDAK dihapus. */
 :root {
   --teal: #2e9e8f;
   --teal-tua: #22766b;
@@ -17,14 +18,147 @@
   --kuning: #f2b705;
   --merah: #d84b40;
   --hijau: #3b9e4d;
+
+  /* turunan 1b — SEMUA warna baru hanya dari sini */
+  --teal-gelap: #1d6a60;
+  --teal-pastel: #bfe5de;
+  --coral-tua: #c9502b;
+  --coral-gelap: #b34a28;
+  --coral-pastel: #fad4c4;
+  --coral-border: #f6d5c9;
+  --kuning-pastel: #fbe9b6;
+  --kuning-muda: #fdf6de;
+  --kuning-teks: #8a5a06;
+  --kuning-gelap: #5c4404;
+  --kuning-border: #f0dfa0;
+  --merah-muda: #fdecea;
+  --merah-teks: #a13a31;
+  --merah-border: #f3c6bd;
+  --hijau-teks: #2c7d3b;
+  --hijau-muda: #e9f6ec;
+  --hijau-border: #c9e8cf;
+  --bg-kader: #f4faf7;
+  --bg-ortu: #fbf7f0;
+  --krem-border: #e7ddcf;
+  --krem-input: #fdfbf7;
+  --garis-kader: #d8ece6;
+  --garis-ortu: #f0e4d8;
+  --abu: #8ba09c;
+  --teks-3: #3f524f;
+
+  --r-kartu: 22px;
+  --r-tombol: 16px;
+  --r-input: 14px;
+  --t-cepat: .1s;
+  --t-normal: .15s;
+  --pegas: cubic-bezier(.34, 1.56, .64, 1);
+
+  /* semantik: status "menunggu verifikasi" (badge anak isian-ortu, banner, centang ortu) —
+     alias dari skala kuning 1b; SATU keluarga, ganti di sini bila token dasar berubah. */
+  --verif: var(--kuning);
+  --verif-muda: var(--kuning-muda);
+  --verif-garis: var(--kuning-border);
+  --verif-teks: var(--kuning-teks);
+  --verif-pekat: var(--kuning-gelap);
 }
 
 html {
   background: var(--bg);
   color: var(--teks);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
   min-height: 100dvh;
+  font-family: var(--font-isi), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* opt-in ke Baloo 2 (judul/angka/tombol) — Nunito (--font-isi) tetap default body */
+.font-judul {
+  font-family: var(--font-judul), system-ui, sans-serif;
+}
+
+/* pola titik latar (data-URI, bukan gambar) — ganti fill sesuai sisi */
+.bg-titik-kader {
+  background-color: var(--bg-kader);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Ccircle cx='8' cy='8' r='2' fill='%232e9e8f' fill-opacity='.09'/%3E%3Ccircle cx='32' cy='28' r='2' fill='%232e9e8f' fill-opacity='.06'/%3E%3C/svg%3E");
+}
+.bg-titik-ortu {
+  background-color: var(--bg-ortu);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Ccircle cx='8' cy='8' r='2' fill='%23e8704a' fill-opacity='.1'/%3E%3Ccircle cx='32' cy='28' r='2' fill='%23f2b705' fill-opacity='.08'/%3E%3C/svg%3E");
+}
+
+/* tepi scallop di bawah hero — --scallop = warna ujung gradien hero, diset per pemakaian */
+.scallop {
+  height: 16px;
+  background-image: radial-gradient(circle at 14px -5px, var(--scallop) 15px, transparent 16px);
+  background-size: 28px 16px;
+  background-repeat: repeat-x;
+}
+
+/* tombol 3D — .btn3d-teal / .btn3d-coral menentukan warna */
+.btn3d {
+  border: none;
+  border-radius: var(--r-tombol);
+  font-family: var(--font-judul), system-ui, sans-serif;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: transform var(--t-cepat), box-shadow var(--t-cepat);
+}
+.btn3d-teal { background: var(--teal); box-shadow: 0 5px 0 var(--teal-tua); }
+.btn3d-coral { background: var(--coral); box-shadow: 0 5px 0 var(--coral-tua); }
+.btn3d:active { transform: translateY(3px); }
+.btn3d-teal:active { box-shadow: 0 2px 0 var(--teal-tua); }
+.btn3d-coral:active { box-shadow: 0 2px 0 var(--coral-tua); }
+
+/* tombol garis (outline) — border-color diset per pemakaian (teal/coral/merah dst) */
+.btn-garis {
+  background: var(--kartu);
+  border-radius: var(--r-tombol);
+  font-family: var(--font-judul), system-ui, sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--t-cepat);
+}
+.btn-garis:active { transform: scale(.95); }
+
+/* stiker (badge pill miring 1.5–3°) — background/color diset per status via inline/util */
+.stiker {
+  position: absolute;
+  top: -10px;
+  font-family: var(--font-judul), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  transform: rotate(-2deg);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .08);
+}
+
+/* animasi masuk */
+@keyframes popIn { 0% { opacity: 0; transform: scale(.85); } 60% { opacity: 1; transform: scale(1.03); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes slideBar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes wiggle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.pop { animation: popIn .5s var(--pegas) both; }
+.pop-1 { animation-delay: .05s; }
+.pop-2 { animation-delay: .1s; }
+.pop-3 { animation-delay: .15s; }
+.pop-4 { animation-delay: .2s; }
+.pop-5 { animation-delay: .25s; }
+.pop-6 { animation-delay: .3s; }
+
+/* transisi antar halaman (View Transitions API — progressive enhancement) */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation: vtKeluar .18s ease both; }
+::view-transition-new(root) { animation: vtMasuk .24s ease both; }
+@keyframes vtKeluar { to { opacity: 0; transform: translateY(6px); } }
+@keyframes vtMasuk { from { opacity: 0; transform: translateY(10px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }

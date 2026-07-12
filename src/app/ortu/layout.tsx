@@ -16,7 +16,7 @@ export default async function OrtuLayout({ children }: { children: React.ReactNo
     <div className="min-h-dvh pb-16">
       <Kepala user={user} warna="var(--coral)" />
       {children}
-      <NavBawah item={NAV} />
+      <NavBawah item={NAV} peran="ortu" />
     </div>
   );
 }

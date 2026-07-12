@@ -15,7 +15,7 @@ export default async function KaderLayout({ children }: { children: React.ReactN
     <div className="min-h-dvh pb-16">
       <Kepala user={user} />
       {children}
-      <NavBawah item={NAV} />
+      <NavBawah item={NAV} peran="kader" />
     </div>
   );
 }
