@@ -25,7 +25,7 @@ export default async function OrtuAnakBaruPage({
       <Link href="/ortu/anakku" className="text-xs font-bold text-[var(--teks-sekunder)]">
         ← Kembali
       </Link>
-      <h1 className="mt-2 text-lg font-extrabold text-[var(--teal-tua)]">Tambah Anak Saya</h1>
+      <h1 className="font-judul mt-2 text-lg font-extrabold text-[var(--coral-gelap)]">Tambah Anak Saya 👶</h1>
       <p className="mb-4 mt-1 text-xs leading-relaxed text-[var(--teks-sekunder)]">
         Isi data anak Anda. Pilih <b>posyandu</b> tempat anak diperiksa. Anak akan muncul di{" "}
         <b>Anakku</b> dan bisa dilihat kader posyandu untuk diverifikasi.
@@ -39,6 +39,8 @@ export default async function OrtuAnakBaruPage({
         galat={galat}
         action={simpanAnakOrtu}
         labelSimpan="Tambah anak saya"
+        aksen="var(--coral)"
+        aksenTua="var(--coral-gelap)"
         catatan={
           <>
             Anak akan berstatus <b>belum diverifikasi</b> sampai kader posyandu memeriksanya.

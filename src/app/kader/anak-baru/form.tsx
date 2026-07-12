@@ -25,6 +25,8 @@ export default function FormAnak({
   action,
   labelSimpan,
   catatan,
+  aksen = "var(--teal)",
+  aksenTua = "var(--teal-tua)",
 }: {
   posyandu: PosyanduOpsi[];
   idEdit?: number;
@@ -34,6 +36,9 @@ export default function FormAnak({
   action?: (formData: FormData) => Promise<void>;
   labelSimpan?: string;
   catatan?: ReactNode;
+  /** Warna aksen judul/tombol/fokus — teal (kader, default) atau coral (ortu). */
+  aksen?: string;
+  aksenTua?: string;
 }) {
   const [merek, setMerek] = useState<Record<string, string>>(() => merekAwal(awal?.vaksin ?? {}));
   const [tglLahir, setTglLahir] = useState(awal?.tglLahir ?? "");
@@ -49,18 +54,18 @@ export default function FormAnak({
     if (g) g[1].push(d); else grup.push([um, [d]]);
   }
 
-  const inp = "mt-1 w-full rounded-lg border border-[var(--garis)] px-3 py-2 text-sm";
+  const inp = "mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2.5 text-base outline-none";
   const lbl = "block text-xs font-semibold text-[var(--teks-sekunder)]";
 
   return (
     <form action={action ?? simpanAnakBaru}>
       {idEdit && <input type="hidden" name="id" value={idEdit} />}
       {galat && (
-        <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-[var(--merah)]">{galat}</p>
+        <p className="mb-3 rounded-lg bg-[var(--merah-muda)] px-3 py-2 text-xs font-semibold text-[var(--merah-teks)]">{galat}</p>
       )}
 
-      <section className="rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] p-4">
-        <h2 className="text-sm font-extrabold text-[var(--teal-tua)]">Identitas Anak</h2>
+      <section className="rounded-[var(--r-kartu)] border-2 border-[var(--krem-border)] bg-[var(--kartu)] p-4">
+        <h2 className="font-judul text-sm font-extrabold" style={{ color: aksenTua }}>👤 Identitas Anak</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className={lbl}>Nama anak *
             <input name="nama" defaultValue={awal?.nama} className={inp} placeholder="nama lengkap" />
@@ -75,8 +80,8 @@ export default function FormAnak({
               <option value="P">Perempuan</option>
             </select>
           </label>
-          <label className={lbl}>Posyandu *
-            <select name="posyanduId" defaultValue={awal?.posyanduId ?? posyandu[0]?.id} className={inp}>
+          <label className={lbl}>Posyandu * <span style={{ color: aksenTua }}>— tempat anak diperiksa</span>
+            <select name="posyanduId" defaultValue={awal?.posyanduId ?? posyandu[0]?.id} className={inp} style={{ borderColor: aksen }}>
               {posyandu.map((p) => (
                 <option key={p.id} value={p.id}>{p.label} — {p.kelurahan}</option>
               ))}
@@ -100,12 +105,12 @@ export default function FormAnak({
         </div>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] p-4">
-        <h2 className="text-sm font-extrabold text-[var(--teal-tua)]">Dosis yang sudah diterima</h2>
+      <section className="mt-4 rounded-[var(--r-kartu)] border-2 border-[var(--krem-border)] bg-[var(--kartu)] p-4">
+        <h2 className="font-judul text-sm font-extrabold" style={{ color: aksenTua }}>💉 Dosis yang sudah diterima</h2>
         <p className="mt-1 text-[11px] leading-relaxed text-[var(--teks-sekunder)]">
-          Isi tanggal hanya untuk dosis yang SUDAH diberikan. Merek DPT (Penta/Hexa) &amp;
-          Rotavirus (Rotavac/Rotarix) memengaruhi slot: Hexavalen menyembunyikan IPV, Rotarix
-          menyembunyikan Rotavirus 3.
+          Isi tanggal hanya untuk dosis yang <b>SUDAH</b> diberikan. Lihat buku KIA — belum ada /
+          tidak yakin? Kosongkan saja. Merek DPT (Penta/Hexa) &amp; Rotavirus (Rotavac/Rotarix)
+          memengaruhi slot: Hexavalen menyembunyikan IPV, Rotarix menyembunyikan Rotavirus 3.
         </p>
 
         <div className="mt-3 space-y-4">
@@ -118,7 +123,7 @@ export default function FormAnak({
             if (tampil.length === 0) return null;
             return (
               <div key={um}>
-                <p className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--teal-tua)]">
+                <p className="text-[11px] font-extrabold uppercase tracking-wide" style={{ color: aksenTua }}>
                   {um === 0 ? "Lahir" : `${um} bulan`}
                 </p>
                 <div className="mt-1.5 grid gap-3 sm:grid-cols-2">
@@ -130,15 +135,22 @@ export default function FormAnak({
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-semibold">{d.nama}</span>
                           {varian && (
-                            <select
-                              value={merek[d.kode]}
-                              onChange={(e) => setMerek((m) => ({ ...m, [d.kode]: e.target.value }))}
-                              className="rounded border border-[var(--garis)] px-1.5 py-0.5 text-[11px]"
-                            >
-                              {varian.map((v) => (
-                                <option key={v.kode} value={v.kode}>{v.merek}</option>
-                              ))}
-                            </select>
+                            <div className="flex overflow-hidden rounded-full border border-[var(--garis)]">
+                              {varian.map((v) => {
+                                const aktifV = merek[d.kode] === v.kode;
+                                return (
+                                  <button
+                                    key={v.kode}
+                                    type="button"
+                                    onClick={() => setMerek((m) => ({ ...m, [d.kode]: v.kode }))}
+                                    className="px-2 py-0.5 text-[10px] font-bold transition-colors"
+                                    style={{ background: aktifV ? aksen : "transparent", color: aktifV ? "#fff" : "var(--teks-sekunder)" }}
+                                  >
+                                    {v.merek}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
                         <input
@@ -146,7 +158,7 @@ export default function FormAnak({
                           type="date"
                           min={tglLahir || undefined}
                           defaultValue={awal?.vaksin?.[kodeAktif] ?? ""}
-                          className="mt-1 w-full rounded-lg border border-[var(--garis)] px-3 py-1.5 text-sm"
+                          className="mt-1 w-full rounded-lg border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-1.5 text-sm"
                         />
                       </div>
                     );
@@ -160,7 +172,8 @@ export default function FormAnak({
 
       <button
         type="submit"
-        className="mt-4 w-full rounded-xl bg-[var(--teal)] py-3 text-sm font-bold text-white hover:bg-[var(--teal-tua)]"
+        className="btn3d mt-4 w-full py-3 text-sm"
+        style={{ background: aksen, boxShadow: `0 5px 0 ${aksenTua}` }}
       >
         {labelSimpan ?? (idEdit ? "Simpan perubahan" : "Daftarkan anak")}
       </button>

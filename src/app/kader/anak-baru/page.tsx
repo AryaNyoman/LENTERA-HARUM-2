@@ -38,7 +38,7 @@ export default async function AnakBaruPage({
       >
         ← Kembali
       </Link>
-      <h1 className="mt-2 mb-4 text-lg font-extrabold text-[var(--teal-tua)]">
+      <h1 className="font-judul mt-2 mb-4 text-lg font-extrabold text-[var(--teal-tua)]">
         {idEdit ? "Edit Anak" : "Daftarkan Anak Baru"}
       </h1>
       <FormAnak

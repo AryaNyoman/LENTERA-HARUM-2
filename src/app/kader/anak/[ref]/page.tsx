@@ -20,6 +20,13 @@ function isiSlot(vaksin: Record<string, string>, kode: string): { tgl: string; m
   return vaksin[kode] ? { tgl: vaksin[kode] } : null;
 }
 
+function emojiUsia(um: number): string {
+  if (um === 0) return "👶";
+  if (um <= 4) return "🍼";
+  if (um <= 12) return "🩹";
+  return "💉";
+}
+
 export default async function DetailAnak({
   params,
   searchParams,
@@ -39,6 +46,7 @@ export default async function DetailAnak({
   const centang = await daftarCentang(anak.ref);
   const centangMap = new Map(centang.map((c) => [c.vaksinKode, c]));
   const menunggu = centang.filter((c) => !c.verified);
+  const belumVerifOrtu = anak.olehOrtu && !anak.terverifikasi;
 
   // kelompokkan slot per umur ideal
   const grup = new Map<number, typeof DOSIS_REGISTRY>();
@@ -53,13 +61,24 @@ export default async function DetailAnak({
         ← Daftar Bayi
       </Link>
       {galat && (
-        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-[var(--merah)]">{galat}</p>
+        <p className="mt-3 rounded-lg bg-[var(--merah-muda)] px-3 py-2 text-xs font-semibold text-[var(--merah-teks)]">{galat}</p>
       )}
 
-      <section className="mt-3 rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] p-4">
+      <section
+        className="relative mt-3 rounded-[var(--r-kartu)] border-2 border-[var(--teal-pastel)] p-4"
+        style={{ background: "linear-gradient(135deg,var(--teal-muda),#fff)", marginTop: belumVerifOrtu ? "22px" : "12px" }}
+      >
+        {belumVerifOrtu && (
+          <span
+            className="stiker"
+            style={{ left: "16px", top: "-14px", background: "var(--verif)", color: "var(--verif-pekat)" }}
+          >
+            🟡 diisi ortu
+          </span>
+        )}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-lg font-extrabold">{anak.isi.nama}</h1>
+            <h1 className="font-judul text-lg font-extrabold">{anak.isi.nama}</h1>
             <p className="mt-0.5 text-xs text-[var(--teks-sekunder)]">
               {anak.isi.jk === "P" ? "Perempuan" : "Laki-laki"} · lahir {fmtTglId(anak.isi.tglLahir)} ·{" "}
               {labelUsia(usia)}
@@ -74,26 +93,20 @@ export default async function DetailAnak({
             )}
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
-            {idl && <span className="rounded bg-green-50 px-2 py-0.5 text-[11px] font-bold text-[var(--hijau)]">IDL ✓</span>}
-            {ibl && <span className="rounded bg-green-50 px-2 py-0.5 text-[11px] font-bold text-[var(--hijau)]">IBL ✓</span>}
+            {idl && <span className="rounded bg-[var(--hijau-muda)] px-2 py-0.5 text-[11px] font-bold text-[var(--hijau-teks)]">IDL ✓</span>}
+            {ibl && <span className="rounded bg-[var(--hijau-muda)] px-2 py-0.5 text-[11px] font-bold text-[var(--hijau-teks)]">IBL ✓</span>}
             <span
               className="rounded px-2 py-0.5 text-[11px] font-bold"
               style={{
                 background: anak.sumber === "SIMPUS" ? "var(--bg)" : "var(--coral-muda)",
-                color: anak.sumber === "SIMPUS" ? "var(--teks-sekunder)" : "var(--coral)",
+                color: anak.sumber === "SIMPUS" ? "var(--teks-sekunder)" : "var(--coral-gelap)",
               }}
             >
               {anak.sumber === "SIMPUS" ? "Data SIMPUS" : anak.status === "DRAF" ? "BARU — belum ekspor" : "BARU — diekspor"}
             </span>
-            {anak.olehOrtu && (
-              <span
-                className="rounded px-2 py-0.5 text-[11px] font-bold"
-                style={{
-                  background: anak.terverifikasi ? "var(--teal-muda)" : "var(--kuning)",
-                  color: anak.terverifikasi ? "var(--teal-tua)" : "#3a2e00",
-                }}
-              >
-                {anak.terverifikasi ? "diisi ortu ✓" : "diisi ortu"}
+            {anak.olehOrtu && anak.terverifikasi && (
+              <span className="rounded-full border-[1.5px] px-2 py-0.5 text-[11px] font-bold" style={{ background: "var(--teal-muda)", color: "var(--teal-tua)", borderColor: "var(--teal-pastel)" }}>
+                diisi ortu ✓
               </span>
             )}
           </div>
@@ -102,39 +115,35 @@ export default async function DetailAnak({
         {anak.sumber === "BARU" ? (
           <>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              href={`/kader/anak-baru?ref=b:${anak.id}`}
-              className="rounded-xl bg-[var(--teal)] px-4 py-2 text-xs font-bold text-white"
-            >
-              ✎ Edit data & dosis
+            <Link href={`/kader/anak-baru?ref=b:${anak.id}`} className="btn3d btn3d-teal px-4 py-2 text-xs">
+              ✎ Edit data &amp; dosis
             </Link>
             <Link
               href={`/kader/anak/${anak.ref}/qr`}
-              className="rounded-xl border-2 border-[var(--coral)] px-4 py-2 text-xs font-bold text-[var(--coral)]"
+              className="btn-garis border-2 px-4 py-2 text-xs text-[var(--coral-gelap)]"
+              style={{ borderColor: "var(--coral)" }}
             >
               🔗 QR Orang Tua
             </Link>
             {anak.status === "DRAF" && (
               <form action={hapusAnakBaru}>
                 <input type="hidden" name="id" value={anak.id} />
-                <button className="rounded-xl border border-[var(--merah)] px-4 py-2 text-xs font-bold text-[var(--merah)]">
+                <button className="btn-garis border-2 border-[var(--merah)] px-4 py-2 text-xs text-[var(--merah-teks)]">
                   Hapus
                 </button>
               </form>
             )}
           </div>
-          {anak.olehOrtu && !anak.terverifikasi && (
-            <div className="mt-3 rounded-xl border-2 border-[var(--kuning)] bg-[#fffdf5] p-3">
-              <p className="text-xs font-bold text-[#8a6d00]">🟡 Diisi orang tua — belum diverifikasi</p>
+          {belumVerifOrtu && (
+            <div className="pop mt-3 rounded-2xl border-2 p-3" style={{ borderColor: "var(--verif-garis)", background: "var(--verif-muda)" }}>
+              <p className="font-judul text-xs font-bold" style={{ color: "var(--verif-pekat)" }}>🟡 Diisi orang tua — belum diverifikasi</p>
               <p className="mt-1 text-[11px] leading-relaxed text-[var(--teks-sekunder)]">
                 Anak ini didaftarkan sendiri oleh orang tua. Periksa datanya (cocokkan buku KIA,
                 hindari duplikat dengan anak yang sudah ada). Setelah diverifikasi, anak bisa ikut Export SIMPUS.
               </p>
               <form action={verifikasiAnak} className="mt-2">
                 <input type="hidden" name="id" value={anak.id} />
-                <button className="rounded-xl bg-[var(--teal)] px-4 py-2 text-xs font-bold text-white">
-                  ✓ Verifikasi anak ini
-                </button>
+                <button className="btn3d btn3d-teal px-4 py-2 text-xs">✓ Verifikasi anak ini</button>
               </form>
             </div>
           )}
@@ -143,7 +152,8 @@ export default async function DetailAnak({
           <div className="mt-3">
             <Link
               href={`/kader/anak/${anak.ref}/qr`}
-              className="inline-block rounded-xl border-2 border-[var(--coral)] px-4 py-2 text-xs font-bold text-[var(--coral)]"
+              className="btn-garis inline-block border-2 px-4 py-2 text-xs text-[var(--coral-gelap)]"
+              style={{ borderColor: "var(--coral)" }}
             >
               🔗 QR Orang Tua
             </Link>
@@ -155,12 +165,12 @@ export default async function DetailAnak({
       </section>
 
       <section className="mt-4">
-        <h2 className="text-sm font-extrabold">Riwayat Imunisasi</h2>
+        <h2 className="font-judul text-sm font-extrabold">Riwayat Imunisasi</h2>
         <div className="mt-2 space-y-3">
           {[...grup.entries()].map(([um, daftar]) => (
-            <div key={um} className="rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] p-3">
+            <div key={um} className="rounded-2xl border-2 border-[var(--garis-kader)] bg-[var(--kartu)] p-3">
               <p className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--teal-tua)]">
-                {um === 0 ? "Lahir" : `${um} bulan`}
+                {emojiUsia(um)} {um === 0 ? "Lahir" : `${um} bulan`}
               </p>
               <div className="mt-1.5 space-y-1">
                 {daftar.map((d) => {
@@ -179,7 +189,7 @@ export default async function DetailAnak({
                         )}
                         {c && (
                           <span className="ml-1 rounded px-1 py-0.5 text-[10px] font-bold"
-                            style={{ background: c.verified ? "#e0f2fe" : "#fef7e0", color: c.verified ? "#075985" : "#a16207" }}>
+                            style={{ background: c.verified ? "var(--teal-muda)" : "var(--verif-muda)", color: c.verified ? "var(--teal-tua)" : "var(--verif-teks)" }}>
                             {c.verified ? "verifikasi kader" : "centang ortu"}
                           </span>
                         )}
@@ -201,9 +211,10 @@ export default async function DetailAnak({
       </section>
 
       {menunggu.length > 0 && (
-        <section className="mt-4 rounded-2xl border-2 border-[#f2b705] bg-[var(--kartu)] p-4">
-          <h2 className="text-sm font-extrabold text-[#a16207]">
-            🟡 Centang Orang Tua — menunggu verifikasi ({menunggu.length})
+        <section className="pop mt-4 rounded-2xl border-2 p-4" style={{ borderColor: "var(--verif-garis)", background: "var(--kartu)" }}>
+          <h2 className="font-judul flex items-center gap-1.5 text-sm font-extrabold" style={{ color: "var(--verif-teks)" }}>
+            <span style={{ display: "inline-block", animation: "wiggle 2s ease-in-out infinite" }}>🟡</span>
+            Centang Orang Tua — menunggu verifikasi ({menunggu.length})
           </h2>
           <p className="mt-1 text-[11px] text-[var(--teks-sekunder)]">
             Orang tua menandai dosis ini diberikan di faskes lain. Verifikasi bila sesuai bukti
@@ -227,7 +238,7 @@ export default async function DetailAnak({
                   <form action={verifikasiCentang}>
                     <input type="hidden" name="id" value={c.id} />
                     <input type="hidden" name="aksi" value="tolak" />
-                    <button className="rounded-lg border border-[var(--merah)] px-3 py-1.5 text-[11px] font-bold text-[var(--merah)]">
+                    <button className="rounded-lg border border-[var(--merah)] px-3 py-1.5 text-[11px] font-bold text-[var(--merah-teks)]">
                       Tolak
                     </button>
                   </form>

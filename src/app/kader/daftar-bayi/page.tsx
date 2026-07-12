@@ -35,7 +35,7 @@ export default async function DaftarBayi({
     <main className="mx-auto max-w-3xl px-4 py-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-extrabold text-[var(--teal-tua)]">Daftar Bayi</h1>
+          <h1 className="font-judul text-lg font-extrabold text-[var(--teal-tua)]">Daftar Bayi</h1>
           <p className="text-xs text-[var(--teks-sekunder)]">
             {daftar.length} dari {semua.length} anak · posyandu binaan Anda
           </p>
@@ -43,14 +43,12 @@ export default async function DaftarBayi({
         <div className="flex shrink-0 gap-2">
           <a
             href="/kader/export"
-            className="rounded-xl border-2 border-[var(--teal)] px-3 py-2 text-xs font-bold text-[var(--teal-tua)]"
+            className="btn-garis border-2 px-3 py-2 text-xs text-[var(--teal-tua)]"
+            style={{ borderColor: "var(--teal)" }}
           >
-            ⬇ Export SIMPUS
+            ⬇ Export
           </a>
-          <Link
-            href="/kader/anak-baru"
-            className="rounded-xl bg-[var(--coral)] px-3 py-2 text-xs font-bold text-white"
-          >
+          <Link href="/kader/anak-baru" className="btn3d btn3d-coral px-3 py-2 text-xs">
             + Daftarkan
           </Link>
         </div>
@@ -61,10 +59,10 @@ export default async function DaftarBayi({
           name="q"
           defaultValue={q}
           placeholder="Cari nama anak / ortu / NIK…"
-          className="w-full rounded-xl border border-[var(--garis)] bg-[var(--kartu)] px-3 py-2 text-sm"
+          className="w-full rounded-full border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-4 py-2.5 text-sm focus:border-[var(--teal)] focus:outline-none"
         />
         {u && <input type="hidden" name="u" value={u} />}
-        <button className="rounded-xl bg-[var(--teal)] px-4 text-sm font-bold text-white">Cari</button>
+        <button className="btn3d btn3d-teal px-5 text-sm">Cari</button>
       </form>
 
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -75,11 +73,11 @@ export default async function DaftarBayi({
             <Link
               key={f.label}
               href={href}
-              className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold"
+              className="font-judul shrink-0 rounded-full border-2 px-3.5 py-1.5 text-xs font-bold transition-colors"
               style={{
-                borderColor: aktif ? "var(--teal)" : "var(--garis)",
-                background: aktif ? "var(--teal-muda)" : "var(--kartu)",
-                color: aktif ? "var(--teal-tua)" : "var(--teks-sekunder)",
+                borderColor: aktif ? "var(--teal)" : "var(--garis-kader)",
+                background: aktif ? "var(--teal)" : "var(--kartu)",
+                color: aktif ? "#fff" : "var(--teks-sekunder)",
               }}
             >
               {f.label}
@@ -90,11 +88,14 @@ export default async function DaftarBayi({
 
       <div className="mt-4 space-y-2">
         {daftar.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-[var(--garis)] bg-[var(--kartu)] p-6 text-center text-sm text-[var(--teks-sekunder)]">
-            {semua.length === 0
-              ? "Belum ada anak. Daftarkan anak baru, atau tunggu tarikan data SIMPUS (Tahap 7)."
-              : "Tidak ada yang cocok dengan pencarian/filter."}
-          </p>
+          <div className="rounded-[var(--r-kartu)] border-2 border-dashed border-[var(--garis-kader)] bg-[var(--kartu)] p-6 text-center">
+            <p className="text-2xl">{semua.length === 0 ? "👶" : "🔍"}</p>
+            <p className="mt-2 text-sm text-[var(--teks-sekunder)]">
+              {semua.length === 0
+                ? "Belum ada anak. Daftarkan anak baru, atau tunggu tarikan data SIMPUS."
+                : "Tidak ketemu… coba kata lain ya."}
+            </p>
+          </div>
         )}
         {daftar.map((a) => {
           const usia = hitungUsiaBulan(a.isi.tglLahir, now);
@@ -103,11 +104,14 @@ export default async function DaftarBayi({
             <Link
               key={a.ref}
               href={`/kader/anak/${a.ref}`}
-              className="flex items-center gap-3 rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] px-4 py-3"
+              className="flex items-center gap-3 rounded-2xl border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-4 py-3"
             >
               <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white"
-                style={{ background: a.isi.jk === "P" ? "var(--coral)" : "var(--teal)" }}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white"
+                style={{
+                  background: a.isi.jk === "P" ? "var(--coral)" : "var(--teal)",
+                  boxShadow: a.olehOrtu && !a.terverifikasi ? "0 0 0 3px var(--verif-muda), 0 0 0 4.5px var(--verif)" : undefined,
+                }}
               >
                 {a.isi.jk || "?"}
               </div>
@@ -120,7 +124,7 @@ export default async function DaftarBayi({
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 {idl && (
-                  <span className="rounded bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-[var(--hijau)]">
+                  <span className="rounded bg-[var(--hijau-muda)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--hijau-teks)]">
                     IDL ✓
                   </span>
                 )}
@@ -129,7 +133,7 @@ export default async function DaftarBayi({
                     className="rounded px-1.5 py-0.5 text-[10px] font-bold"
                     style={{
                       background: a.status === "DRAF" ? "var(--coral-muda)" : "var(--teal-muda)",
-                      color: a.status === "DRAF" ? "var(--coral)" : "var(--teal-tua)",
+                      color: a.status === "DRAF" ? "var(--coral-gelap)" : "var(--teal-tua)",
                     }}
                   >
                     {a.status === "DRAF" ? "BARU — belum ekspor" : "DIEKSPOR"}
@@ -141,11 +145,12 @@ export default async function DaftarBayi({
                 )}
                 {a.olehOrtu && (
                   <span
-                    className="rounded px-1.5 py-0.5 text-[10px] font-bold"
-                    style={{
-                      background: a.terverifikasi ? "var(--teal-muda)" : "var(--kuning)",
-                      color: a.terverifikasi ? "var(--teal-tua)" : "#3a2e00",
-                    }}
+                    className="rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+                    style={
+                      a.terverifikasi
+                        ? { background: "var(--teal-muda)", color: "var(--teal-tua)", border: "1.5px solid var(--teal-pastel)" }
+                        : { background: "var(--verif)", color: "var(--verif-pekat)" }
+                    }
                   >
                     {a.terverifikasi ? "diisi ortu ✓" : "diisi ortu · perlu verifikasi"}
                   </span>
