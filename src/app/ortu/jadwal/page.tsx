@@ -137,9 +137,20 @@ export default async function JadwalOrtu() {
                           </div>
                         </div>
                         {sisaMendatang.length > 0 && (
-                          <p className="mt-2 border-t-[1.5px] border-dashed border-[#e2ece7] pt-2 text-[10.5px] font-semibold text-[var(--abu)]">
-                            Selanjutnya: {sisaMendatang.map((k) => `${k.dosis.join(" & ")} (${fmtPendek(k.jt)})`).join(" · ")}
-                          </p>
+                          <div className="mt-2 border-t-[1.5px] border-dashed border-[#e2ece7] pt-2">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--abu)]">Selanjutnya</p>
+                            <div className="mt-1 flex flex-col gap-1">
+                              {sisaMendatang.map((k) => (
+                                <div key={k.um} className="flex items-baseline gap-2 text-[10.5px] font-semibold text-[var(--abu)]">
+                                  <span className="font-judul shrink-0 font-bold text-[var(--teal-gelap)]">
+                                    {k.um} bln
+                                  </span>
+                                  <span className="min-w-0 flex-1">{k.dosis.join(" · ")}</span>
+                                  <span className="shrink-0">{fmtPendek(k.jt)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}

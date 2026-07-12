@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { simpanAnakBaru } from "@/lib/anak-actions";
 import { DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK } from "@/lib/vaksin";
 import type { IsiAnak } from "@/lib/brankas";
+import InputTanggal from "@/components/input-tanggal";
 
 interface PosyanduOpsi { id: number; label: string; kelurahan: string }
 
@@ -53,6 +54,16 @@ export default function FormAnak({
   const [merek, setMerek] = useState<Record<string, string>>(() => merekAwal(awal?.vaksin ?? {}));
   const [tglLahir, setTglLahir] = useState(awal?.tglLahir ?? "");
 
+  // pilih kelurahan dulu → daftar posyandu menyempit (tidak panjang sekali)
+  const daftarKelurahan = [...new Set(posyandu.map((p) => p.kelurahan))];
+  const kelurahanAwal =
+    posyandu.find((p) => p.id === awal?.posyanduId)?.kelurahan ?? daftarKelurahan[0] ?? "";
+  const [kelurahan, setKelurahan] = useState(kelurahanAwal);
+  const posyanduTersaring = posyandu.filter((p) => p.kelurahan === kelurahan);
+  const [posyanduId, setPosyanduId] = useState<number>(
+    awal?.posyanduId ?? posyanduTersaring[0]?.id ?? posyandu[0]?.id,
+  );
+
   const jalurHexa = ["PENTA1", "PENTA2", "PENTA3"].some((s) => merek[s]?.startsWith("HEXA"));
   const jalurRotarix = ["ROTA1", "ROTA2"].some((s) => merek[s]?.startsWith("ROTARIX"));
 
@@ -74,7 +85,7 @@ export default function FormAnak({
 
   const inpStyle: React.CSSProperties = { borderColor: garis, background: latar };
   const inp = "mt-1.5 h-[46px] w-full rounded-[14px] border-2 px-3.5 text-base font-semibold outline-none transition-colors";
-  const inpTgl = "h-[42px] w-[150px] shrink-0 rounded-xl border-2 px-2.5 text-sm font-semibold outline-none";
+  const inpTgl = "h-[42px] w-full rounded-xl border-2 px-2.5 text-sm font-semibold outline-none";
 
   return (
     <form action={action ?? simpanAnakBaru}>
@@ -95,7 +106,14 @@ export default function FormAnak({
         <div className="mt-3 grid grid-cols-2 gap-2.5">
           <label className={`${lbl} min-w-0`}>
             Tanggal lahir {wajib}
-            <input name="tglLahir" type="date" value={tglLahir} onChange={(e) => setTglLahir(e.target.value)} className={inp} style={inpStyle} />
+            <InputTanggal
+              name="tglLahir"
+              value={tglLahir}
+              onChange={(e) => setTglLahir(e.target.value)}
+              bungkus="relative mt-1.5 block"
+              className="h-[46px] w-full rounded-[14px] border-2 px-3.5 text-base font-semibold outline-none transition-colors"
+              style={inpStyle}
+            />
           </label>
           <label className={`${lbl} min-w-0`}>
             Jenis kelamin {wajib}
@@ -107,16 +125,34 @@ export default function FormAnak({
           </label>
         </div>
         <label className={`${lbl} mt-3`}>
+          Kelurahan {wajib}
+          <select
+            value={kelurahan}
+            onChange={(e) => {
+              setKelurahan(e.target.value);
+              const pertama = posyandu.find((p) => p.kelurahan === e.target.value);
+              if (pertama) setPosyanduId(pertama.id);
+            }}
+            className={`${inp} min-w-0`}
+            style={inpStyle}
+          >
+            {daftarKelurahan.map((k) => (
+              <option key={k} value={k}>{k}</option>
+            ))}
+          </select>
+        </label>
+        <label className={`${lbl} mt-3`}>
           Posyandu {wajib}{" "}
           {ortu && <span className="font-semibold text-[var(--abu)]">— tempat anak diperiksa</span>}
           <select
             name="posyanduId"
-            defaultValue={awal?.posyanduId ?? posyandu[0]?.id}
+            value={posyanduId}
+            onChange={(e) => setPosyanduId(Number(e.target.value))}
             className={`${inp} min-w-0 ${ortu ? "font-bold" : ""}`}
             style={ortu ? { borderColor: "var(--coral)", background: "#fdf9f5" } : inpStyle}
           >
-            {posyandu.map((p) => (
-              <option key={p.id} value={p.id}>{p.label} — {p.kelurahan}</option>
+            {posyanduTersaring.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
             ))}
           </select>
         </label>
@@ -132,7 +168,7 @@ export default function FormAnak({
         </div>
         <label className={`${lbl} mt-3`}>
           NIK anak <span className="font-semibold text-[var(--abu)]">(16 digit, boleh kosong)</span>
-          <input name="nik" inputMode="numeric" defaultValue={awal?.nik} className={inp} style={inpStyle} />
+          <input name="nik" inputMode="numeric" maxLength={16} pattern="\d{16}" title="16 digit angka" defaultValue={awal?.nik} className={inp} style={inpStyle} />
         </label>
         <div className="mt-3 grid grid-cols-[2fr_1fr] gap-2.5">
           <label className={`${lbl} min-w-0`}>
@@ -176,11 +212,12 @@ export default function FormAnak({
                     return (
                       <div key={d.kode} className="flex items-center gap-2.5 py-[5px]">
                         <span className="min-w-0 flex-1 text-[13px] font-bold">{d.nama}</span>
-                        <input
+                        <InputTanggal
+                          key={`tgl-${kodeAktif}`}
                           name={`vaksin__${kodeAktif}`}
-                          type="date"
                           min={tglLahir || undefined}
                           defaultValue={awal?.vaksin?.[kodeAktif] ?? ""}
+                          bungkus="relative inline-block w-[150px] shrink-0"
                           className={inpTgl}
                           style={inpStyle}
                         />
@@ -208,12 +245,13 @@ export default function FormAnak({
                           })}
                         </span>
                       </div>
-                      <input
+                      <InputTanggal
+                        key={`tgl-${kodeAktif}`}
                         name={`vaksin__${kodeAktif}`}
-                        type="date"
                         min={tglLahir || undefined}
                         defaultValue={awal?.vaksin?.[kodeAktif] ?? ""}
-                        className="mt-1.5 h-[42px] w-full rounded-xl border-2 px-2.5 text-sm font-semibold outline-none"
+                        bungkus="relative mt-1.5 block"
+                        className="h-[42px] w-full rounded-xl border-2 px-2.5 text-sm font-semibold outline-none"
                         style={inpStyle}
                       />
                     </div>

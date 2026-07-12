@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import KepalaHalaman from "@/components/kepala-halaman";
+import InputTanggal from "@/components/input-tanggal";
 import { DOSIS_REGISTRY, UMUR_IDEAL } from "@/lib/vaksin";
 
 const BULAN_ID = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
@@ -71,11 +72,11 @@ export default function Kalkulator() {
       <div className="mx-auto max-w-md px-4 pt-4">
         <label className="pop block text-[12.5px] font-extrabold text-[var(--teks-3)]">
           Tanggal lahir anak
-          <input
-            type="date"
+          <InputTanggal
             value={tgl}
             onChange={(e) => setTgl(e.target.value)}
-            className="mt-1.5 h-[52px] w-full rounded-2xl border-2 border-[var(--teal-pastel)] bg-[var(--kartu)] px-4 text-base font-bold outline-none transition-colors focus:border-[var(--teal)]"
+            bungkus="relative mt-1.5 block"
+            className="h-[52px] w-full rounded-2xl border-2 border-[var(--teal-pastel)] bg-[var(--kartu)] px-4 text-base font-bold outline-none transition-colors focus:border-[var(--teal)]"
           />
         </label>
 

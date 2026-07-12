@@ -89,12 +89,34 @@ export async function simpanAnakOrtu(formData: FormData): Promise<void> {
   if (!pos) galatKe(balik, "Pilih posyandu.");
   const tersegel = segel(isi);
 
+  // create + klaim digabung (nested) — hemat satu bolak-balik DB per submit
   const row = await db.anakBaru.create({
-    data: { posyanduId, ...tersegel, dibuatOlehId: user.id, olehOrtu: true, terverifikasi: false },
+    data: {
+      posyanduId, ...tersegel, dibuatOlehId: user.id, olehOrtu: true, terverifikasi: false,
+      klaim: { create: { userId: user.id } },
+    },
   });
-  await db.klaimAnak.create({ data: { userId: user.id, anakBaruId: row.id } });
   await db.logAktivitas.create({ data: { userId: user.id, aksi: "ANAK_DIINPUT_ORTU", detail: `b:${row.id}` } });
   redirect(`/ortu/anak/b:${row.id}`);
+}
+
+/** Ortu menghapus anak yang DIA daftarkan sendiri (masih DRAF — belum pernah diekspor).
+ *  Cek kepemilikan lewat klaim; relasi klaim/tumbuh/centang ikut terhapus (cascade). */
+export async function hapusAnakOrtu(formData: FormData): Promise<void> {
+  const user = await wajibUser("ORTU");
+  const id = Number(formData.get("id") ?? 0);
+  const milik = await db.klaimAnak.findFirst({
+    where: { userId: user.id, anakBaruId: id },
+    include: { anakBaru: true },
+  });
+  const anak = milik?.anakBaru;
+  if (!anak || !anak.olehOrtu) redirect("/ortu/anakku");
+  if (anak.status !== "DRAF") {
+    redirect(`/ortu/anak/b:${id}?galat=${encodeURIComponent("Sudah disetor ke SIMPUS — minta kader untuk mengubahnya.")}`);
+  }
+  await db.anakBaru.delete({ where: { id } });
+  await db.logAktivitas.create({ data: { userId: user.id, aksi: "ANAK_DIHAPUS_ORTU", detail: `b:${id}` } });
+  redirect("/ortu/anakku");
 }
 
 /** Kader/admin memverifikasi anak yang diinput orang tua → boleh ikut export SIMPUS. */

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import InputTanggal from "@/components/input-tanggal";
 import { catatTumbuh, daftarTumbuh } from "@/lib/tumbuh-actions";
 import { getRefBB, getRefTB, statusGizi, statusTinggi } from "@/lib/tumbuh";
 import { fmtTglId } from "@/lib/anak";
@@ -78,7 +79,7 @@ export default async function TumbuhBagian({
       <div className="mt-2.5 grid grid-cols-2 gap-2.5">
         <label className={lbl}>
           Tanggal ukur
-          <input name="tgl" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className={inp} />
+          <InputTanggal name="tgl" defaultValue={new Date().toISOString().slice(0, 10)} bungkus="relative mt-1 block" className={inp.replace("mt-1 ", "")} />
         </label>
         <label className={lbl}>
           Berat (kg)

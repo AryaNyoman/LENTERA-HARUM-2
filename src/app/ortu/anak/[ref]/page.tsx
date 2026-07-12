@@ -9,7 +9,9 @@ import {
   adaDosis, dosisTakBerlaku, lengkap, SYARAT_IDL, SYARAT_IBL,
 } from "@/lib/vaksin";
 import TumbuhBagian from "@/components/tumbuh-bagian";
+import InputTanggal from "@/components/input-tanggal";
 import { daftarCentang, tandaiOrtu } from "@/lib/centang-actions";
+import { hapusAnakOrtu } from "@/lib/anak-actions";
 
 function isiSlot(vaksin: Record<string, string>, kode: string): { tgl: string; merek?: string } | null {
   const varian = VARIAN_MEREK[kode];
@@ -45,11 +47,14 @@ const CEK_HIJAU = (
 
 export default async function DetailAnakOrtu({
   params,
+  searchParams,
 }: {
   params: Promise<{ ref: string }>;
+  searchParams: Promise<{ galat?: string }>;
 }) {
   const user = await wajibUser("ORTU", "ADMIN");
   const { ref } = await params;
+  const { galat } = await searchParams;
   const anak = await ambilAnakOrtu(decodeURIComponent(ref), user);
   if (!anak) notFound();
 
@@ -84,6 +89,9 @@ export default async function DetailAnakOrtu({
       <KepalaHalaman judul="Kartu Imunisasi 💳" sub="dari menu Anakku" balik="/ortu/anakku" peran="ortu" />
 
       <div className="mx-auto max-w-md px-4 pt-3.5">
+        {galat && (
+          <p className="mb-3 rounded-xl bg-[var(--merah-muda)] px-3 py-2 text-xs font-bold text-[var(--merah-teks)]">{galat}</p>
+        )}
         <section className="pop overflow-hidden rounded-3xl border-2 border-[var(--coral-pastel)] bg-[var(--kartu)]">
           <div className="relative flex items-center gap-3 p-4" style={{ background: "linear-gradient(135deg,#fdf0e9,#fbe9dd)" }}>
             <span
@@ -235,7 +243,7 @@ export default async function DetailAnakOrtu({
                             <div className="mt-1.5 grid grid-cols-2 gap-2">
                               <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
                                 Tanggal
-                                <input name="tgl" type="date" className="mt-1 h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" />
+                                <InputTanggal name="tgl" bungkus="relative mt-1 block" className="h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" />
                               </label>
                               <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
                                 Tempat
@@ -262,6 +270,24 @@ export default async function DetailAnakOrtu({
         </div>
 
         <TumbuhBagian refAnak={anak.ref} jk={anak.isi.jk} balik={`/ortu/anak/${anak.ref}`} />
+
+        {anak.sumber === "BARU" && anak.olehOrtu && anak.status === "DRAF" && (
+          <details className="mt-4 rounded-[20px] border-2 border-[var(--merah-border)] bg-[var(--kartu)] px-4 py-3">
+            <summary className="font-judul cursor-pointer list-none text-[13px] font-bold text-[var(--merah-teks)] [&::-webkit-details-marker]:hidden">
+              🗑️ Hapus data anak ini ▸
+            </summary>
+            <p className="mt-1.5 text-[11px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
+              Data <b>{anak.isi.nama}</b> yang Anda isi sendiri akan dihapus <b>permanen</b> dari
+              website (termasuk catatan tumbuh &amp; centang). Salah isi / dobel? Ini tempatnya.
+            </p>
+            <form action={hapusAnakOrtu} className="mt-2.5">
+              <input type="hidden" name="id" value={anak.id} />
+              <button className="btn-garis h-11 rounded-[13px] border-2 border-[var(--merah)] px-4 text-xs text-[var(--merah)]">
+                Ya, hapus permanen
+              </button>
+            </form>
+          </details>
+        )}
       </div>
     </main>
   );
