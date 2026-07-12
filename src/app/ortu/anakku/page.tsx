@@ -13,24 +13,34 @@ export default async function Anakku() {
     <main className="mx-auto max-w-3xl px-4 py-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-extrabold text-[var(--teal-tua)]">Anakku</h1>
+          <h1 className="font-judul text-lg font-extrabold text-[var(--coral-gelap)]">Anakku ❤️</h1>
           <p className="text-xs text-[var(--teks-sekunder)]">{daftar.length} anak terhubung</p>
         </div>
         <div className="flex shrink-0 gap-2">
-          <Link href="/ortu/anak-baru" className="rounded-xl bg-[var(--coral)] px-3 py-2 text-xs font-bold text-white">
+          <Link href="/ortu/anak-baru" className="btn3d btn3d-coral px-3 py-2 text-xs">
             + Tambah anak
           </Link>
-          <Link href="/ortu/klaim" className="rounded-xl border border-[var(--coral)] px-3 py-2 text-xs font-bold text-[var(--coral)]">
-            Hubungkan (QR)
+          <Link href="/ortu/klaim" className="btn-garis border-2 px-3 py-2 text-xs text-[var(--coral-gelap)]" style={{ borderColor: "var(--coral)" }}>
+            QR
           </Link>
         </div>
       </div>
 
       <div className="mt-4 space-y-3">
         {daftar.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-[var(--garis)] bg-[var(--kartu)] p-6 text-center text-sm text-[var(--teks-sekunder)]">
-            Belum ada anak. Tekan <b>+ Tambah anak</b> untuk mengisi sendiri, atau{" "}
-            <b>Hubungkan (QR)</b> dengan kode dari kader posyandu.
+          <div className="pop grid gap-2 sm:grid-cols-2">
+            <Link href="/ortu/anak-baru" className="rounded-[var(--r-kartu)] border-2 border-[var(--coral-border)] bg-[var(--coral-muda)] p-4 text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/gambar/anak-perempuan.png" alt="" width={56} height={56} className="mx-auto" />
+              <p className="font-judul mt-2 text-sm font-bold text-[var(--coral-gelap)]">Isi sendiri</p>
+              <p className="mt-0.5 text-[11px] text-[var(--teks-sekunder)]">Tanpa perlu ke posyandu dulu</p>
+            </Link>
+            <Link href="/ortu/klaim" className="rounded-[var(--r-kartu)] border-2 border-[var(--teal-pastel)] bg-[var(--teal-muda)] p-4 text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/gambar/anak-laki.png" alt="" width={56} height={56} className="mx-auto" />
+              <p className="font-judul mt-2 text-sm font-bold text-[var(--teal-tua)]">Hubungkan QR</p>
+              <p className="mt-0.5 text-[11px] text-[var(--teks-sekunder)]">Kalau data anak sudah dicatat kader</p>
+            </Link>
           </div>
         )}
         {daftar.map((a) => {
@@ -39,18 +49,25 @@ export default async function Anakku() {
           const sudah = relevan.filter((d) => adaDosis(a.isi.vaksin, d.kode)).length;
           const persen = Math.round((sudah / relevan.length) * 100);
           const idl = lengkap(a.isi.vaksin, SYARAT_IDL);
+          const menunggu = a.olehOrtu && !a.terverifikasi;
           return (
             <Link
               key={a.ref}
               href={`/ortu/anak/${a.ref}`}
-              className="block rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] p-4"
+              className="pop relative block rounded-[var(--r-kartu)] border-2 border-[var(--garis-ortu)] p-4"
+              style={{ background: "linear-gradient(135deg,var(--krem-input),#fff)", marginTop: menunggu ? "10px" : undefined }}
             >
+              {menunggu && (
+                <span className="stiker" style={{ left: "16px", top: "-14px", background: "var(--verif)", color: "var(--verif-pekat)" }}>
+                  🟡 menunggu verifikasi kader
+                </span>
+              )}
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={a.isi.jk === "P" ? "/gambar/anak-perempuan.png" : "/gambar/anak-laki.png"}
                   alt="" width={48} height={48}
-                  className="h-12 w-12 shrink-0 rounded-xl bg-[var(--bg)] object-contain"
+                  className="h-12 w-12 shrink-0 rounded-full bg-[var(--bg)] object-contain p-1"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-extrabold">{a.isi.nama}</p>
@@ -59,7 +76,7 @@ export default async function Anakku() {
                   </p>
                 </div>
                 {idl && (
-                  <span className="shrink-0 rounded bg-green-50 px-2 py-0.5 text-[11px] font-bold text-[var(--hijau)]">
+                  <span className="shrink-0 rounded bg-[var(--hijau-muda)] px-2 py-0.5 text-[11px] font-bold text-[var(--hijau-teks)]">
                     IDL ✓
                   </span>
                 )}
@@ -72,7 +89,7 @@ export default async function Anakku() {
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--bg)]">
                   <div
                     className="h-full rounded-full"
-                    style={{ width: `${persen}%`, background: persen >= 100 ? "var(--hijau)" : "var(--coral)" }}
+                    style={{ width: `${persen}%`, background: persen >= 100 ? "var(--hijau)" : "var(--coral)", transition: "width .4s var(--pegas)" }}
                   />
                 </div>
               </div>

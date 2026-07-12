@@ -6,6 +6,12 @@ import { buka, type IsiAnak } from "@/lib/brankas";
 import { hitungUsiaBulan, kelompokUsia } from "@/lib/anak";
 import { lengkap, SYARAT_IDL } from "@/lib/vaksin";
 
+/** Sapaan hangat: kata pertama nama, fallback "Bunda/Ayah" bila nama kosong. */
+function sapaan(nama: string): string {
+  const depan = nama.trim().split(/\s+/)[0];
+  return depan ? `Halo, ${depan}` : "Halo, Bunda/Ayah";
+}
+
 /** Dashboard ORTU = statistik POSYANDU keseluruhan (posyandu tempat anak-anaknya),
  *  bukan cuma anak sendiri — sesuai keputusan pemilik. Angka = agregat tanpa nama. */
 export default async function DashboardOrtu() {
@@ -38,44 +44,95 @@ export default async function DashboardOrtu() {
     });
   }
 
-  return (
-    <main className="mx-auto max-w-3xl px-4 py-5">
-      <h1 className="text-lg font-extrabold text-[var(--teal-tua)]">Dashboard Posyandu</h1>
-      <p className="mt-0.5 text-xs text-[var(--teks-sekunder)]">
-        Kondisi imunisasi di posyandu Si Kecil{cache ? " · + data SIMPUS" : ""}
-      </p>
+  let jadwalMendesak = 0;
+  for (const a of anakku) {
+    // dihitung ringan di halaman: apakah ada label "IDL belum" saja dipakai sbg sinyal pengingat
+    if (!lengkap(a.isi.vaksin, SYARAT_IDL)) jadwalMendesak++;
+  }
 
-      {anakku.length === 0 ? (
-        <div className="mt-5 rounded-2xl border border-dashed border-[var(--garis)] bg-[var(--kartu)] p-6 text-center">
-          <p className="text-sm font-bold">Belum ada anak terhubung</p>
-          <p className="mt-1 text-xs leading-relaxed text-[var(--teks-sekunder)]">
-            Minta <b>kode QR</b> ke kader posyandu Anda, lalu hubungkan lewat menu Anakku.
-            Setelah terhubung, dashboard posyandu tampil di sini.
-          </p>
-          <Link href="/ortu/anakku" className="mt-3 inline-block rounded-xl bg-[var(--coral)] px-4 py-2 text-xs font-bold text-white">
-            Buka Anakku
-          </Link>
-        </div>
-      ) : (
-        <div className="mt-4 space-y-3">
-          {statistik.map((s) => (
-            <section key={s.label} className="rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] p-4">
-              <h2 className="text-sm font-extrabold text-[var(--teal-tua)]">{s.label}</h2>
-              <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                <div><p className="text-xl font-extrabold text-[var(--teal-tua)]">{s.total}</p><p className="text-[10px] font-bold text-[var(--teks-sekunder)]">Anak</p></div>
-                <div><p className="text-xl font-extrabold text-[var(--teal-tua)]">{s.bayi}</p><p className="text-[10px] font-bold text-[var(--teks-sekunder)]">Bayi 0–11</p></div>
-                <div><p className="text-xl font-extrabold text-[var(--teal-tua)]">{s.baduta}</p><p className="text-[10px] font-bold text-[var(--teks-sekunder)]">Baduta</p></div>
-                <div><p className="text-xl font-extrabold" style={{ color: "var(--hijau)" }}>{s.idl}</p><p className="text-[10px] font-bold text-[var(--teks-sekunder)]">IDL ✓</p></div>
-              </div>
-            </section>
-          ))}
-          <p className="rounded-xl bg-[var(--teal-muda)] px-3 py-2 text-[11px] leading-relaxed text-[var(--teal-tua)]">
-            {cache
-              ? `Data SIMPUS terakhir ditarik ${cache.sinkronPada.toLocaleString("id-ID")}.`
-              : "Cakupan resmi puskesmas (tarikan SIMPUS) akan tampil setelah sinkron aktif."}
+  return (
+    <main className="min-h-[calc(100dvh-56px)] bg-titik-ortu pb-6">
+      <div
+        className="relative px-4 pb-7 pt-5 text-white"
+        style={{ background: "linear-gradient(160deg,#e8704a,#f0906e)", "--scallop": "#f0906e" } as React.CSSProperties}
+      >
+        <div className="mx-auto max-w-3xl">
+          <h1 className="font-judul text-lg font-extrabold">{sapaan(user.nama)} 👋</h1>
+          <p className="mt-0.5 text-xs text-white/90">
+            Kondisi imunisasi di posyandu Si Kecil{cache ? " · + data SIMPUS" : ""}
           </p>
         </div>
-      )}
+      </div>
+      <div className="scallop" style={{ "--scallop": "#f0906e" } as React.CSSProperties} />
+
+      <div className="mx-auto -mt-1 max-w-3xl px-4">
+        {anakku.length === 0 ? (
+          <div className="pop rounded-[var(--r-kartu)] border-2 border-dashed border-[var(--garis-ortu)] bg-[var(--kartu)] p-6 text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/gambar/anak-perempuan.png" alt="" width={64} height={64} className="mx-auto" />
+            <p className="mt-2 text-sm font-bold">Belum ada anak terhubung</p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--teks-sekunder)]">
+              Minta <b>kode QR</b> ke kader posyandu Anda, atau isi data anak sendiri.
+              Setelah terhubung, dashboard posyandu tampil di sini.
+            </p>
+            <Link href="/ortu/anakku" className="btn3d btn3d-coral mt-3 inline-block px-4 py-2 text-xs">
+              Buka Anakku
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {statistik.map((s) => (
+              <section key={s.label} className="pop rounded-[var(--r-kartu)] border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] p-4">
+                <h2 className="font-judul text-sm font-extrabold text-[var(--coral-gelap)]">{s.label}</h2>
+                <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                  {[
+                    { n: s.total, l: "Anak" },
+                    { n: s.bayi, l: "Bayi 0–11" },
+                    { n: s.baduta, l: "Baduta" },
+                    { n: s.idl, l: "IDL ✓", hijau: true },
+                  ].map((k) => (
+                    <div key={k.l} className="rounded-2xl py-2" style={{ background: "var(--krem-input)" }}>
+                      <p className="font-judul text-xl font-extrabold" style={{ color: k.hijau ? "var(--hijau-teks)" : "var(--coral-gelap)" }}>{k.n}</p>
+                      <p className="text-[10px] font-bold text-[var(--teks-sekunder)]">{k.l}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+
+            {jadwalMendesak > 0 && (
+              <Link
+                href="/ortu/jadwal"
+                className="pop flex items-center gap-3 rounded-[var(--r-kartu)] border-2 p-4"
+                style={{ borderColor: "var(--kuning-border)", background: "var(--kuning-muda)" }}
+              >
+                <span style={{ display: "inline-block", animation: "wiggle 2s ease-in-out infinite" }}>🔔</span>
+                <span className="text-xs" style={{ color: "var(--kuning-teks)" }}>
+                  Ada jadwal imunisasi menunggu — <b>lihat Jadwal →</b>
+                </span>
+              </Link>
+            )}
+
+            <div className="grid grid-cols-3 gap-2">
+              <Link href="/ortu/anakku" className="rounded-2xl border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] py-3 text-center text-xs font-bold">
+                👶<br />Anakku
+              </Link>
+              <Link href="/ortu/jadwal" className="rounded-2xl border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] py-3 text-center text-xs font-bold">
+                📅<br />Jadwal
+              </Link>
+              <Link href="/ortu/tumbuh" className="rounded-2xl border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] py-3 text-center text-xs font-bold">
+                📈<br />Tumbuh
+              </Link>
+            </div>
+
+            <p className="rounded-xl bg-[var(--teal-muda)] px-3 py-2 text-[11px] leading-relaxed text-[var(--teal-tua)]">
+              {cache
+                ? `Data SIMPUS terakhir ditarik ${cache.sinkronPada.toLocaleString("id-ID")}.`
+                : "Cakupan resmi puskesmas (tarikan SIMPUS) akan tampil setelah sinkron aktif."}
+            </p>
+          </div>
+        )}
+      </div>
     </main>
   );
 }

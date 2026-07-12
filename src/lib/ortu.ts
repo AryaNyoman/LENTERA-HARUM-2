@@ -10,7 +10,7 @@ function labelPos(p: { nama: string; namaPosyandu: string }): string {
 
 type KlaimRow = {
   anakSimpus: ({ id: number; posyanduId: number; iv: string; tag: string; data: string; posyandu: { nama: string; namaPosyandu: string; kelurahan: { nama: string } } }) | null;
-  anakBaru: ({ id: number; posyanduId: number; iv: string; tag: string; data: string; status: string; posyandu: { nama: string; namaPosyandu: string; kelurahan: { nama: string } } }) | null;
+  anakBaru: ({ id: number; posyanduId: number; iv: string; tag: string; data: string; status: string; olehOrtu: boolean; terverifikasi: boolean; posyandu: { nama: string; namaPosyandu: string; kelurahan: { nama: string } } }) | null;
 };
 
 function keView(k: KlaimRow): AnakView | null {
@@ -26,6 +26,8 @@ function keView(k: KlaimRow): AnakView | null {
       posyanduLabel: labelPos(a.posyandu),
       kelurahan: a.posyandu.kelurahan.nama,
       status: k.anakBaru?.status,
+      olehOrtu: k.anakBaru?.olehOrtu,
+      terverifikasi: k.anakBaru?.terverifikasi,
       isi,
     };
   } catch {

@@ -34,6 +34,9 @@ export default async function DetailAnakOrtu({
   const ibl = lengkap(anak.isi.vaksin, SYARAT_IBL);
   const centang = await daftarCentang(anak.ref);
   const centangMap = new Map(centang.map((c) => [c.vaksinKode, c]));
+  const relevan = DOSIS_REGISTRY.filter((d) => !dosisTakBerlaku(d.kode, anak.isi.vaksin));
+  const sudah = relevan.filter((d) => adaDosis(anak.isi.vaksin, d.kode)).length;
+  const persen = Math.round((sudah / relevan.length) * 100);
 
   const grup = new Map<number, typeof DOSIS_REGISTRY>();
   for (const d of DOSIS_REGISTRY) {
@@ -45,10 +48,13 @@ export default async function DetailAnakOrtu({
     <main className="mx-auto max-w-3xl px-4 py-5">
       <Link href="/ortu/anakku" className="text-xs font-bold text-[var(--teks-sekunder)]">← Anakku</Link>
 
-      <section className="mt-3 rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] p-4">
+      <section
+        className="mt-3 rounded-[var(--r-kartu)] border-2 border-[var(--coral-border)] p-4"
+        style={{ background: "linear-gradient(135deg,var(--coral-muda),#fff)" }}
+      >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-lg font-extrabold">{anak.isi.nama}</h1>
+            <h1 className="font-judul text-lg font-extrabold">{anak.isi.nama}</h1>
             <p className="mt-0.5 text-xs text-[var(--teks-sekunder)]">
               {anak.isi.jk === "P" ? "Perempuan" : "Laki-laki"} · lahir {fmtTglId(anak.isi.tglLahir)} · {labelUsia(usia)}
             </p>
@@ -57,32 +63,41 @@ export default async function DetailAnakOrtu({
             </p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
-            {idl && <span className="rounded bg-green-50 px-2 py-0.5 text-[11px] font-bold text-[var(--hijau)]">IDL ✓</span>}
-            {ibl && <span className="rounded bg-green-50 px-2 py-0.5 text-[11px] font-bold text-[var(--hijau)]">IBL ✓</span>}
+            {idl && <span className="rounded bg-[var(--hijau-muda)] px-2 py-0.5 text-[11px] font-bold text-[var(--hijau-teks)]">IDL ✓</span>}
+            {ibl && <span className="rounded bg-[var(--hijau-muda)] px-2 py-0.5 text-[11px] font-bold text-[var(--hijau-teks)]">IBL ✓</span>}
+          </div>
+        </div>
+        <div className="mt-3">
+          <div className="flex justify-between text-[11px] font-bold text-[var(--coral-gelap)]">
+            <span>Imunisasi {sudah}/{relevan.length} dosis</span>
+            <span>{persen}%</span>
+          </div>
+          <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-white">
+            <div className="h-full rounded-full" style={{ width: `${persen}%`, background: persen >= 100 ? "var(--hijau)" : "var(--coral)" }} />
           </div>
         </div>
       </section>
 
       <section className="mt-4">
-        <h2 className="text-sm font-extrabold">Kartu Imunisasi Digital</h2>
+        <h2 className="font-judul text-sm font-extrabold">Kartu Imunisasi Digital</h2>
         <div className="mt-2 space-y-3">
           {[...grup.entries()].map(([um, daftar]) => (
-            <div key={um} className="rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] p-3">
-              <p className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--coral)]">
+            <div key={um} className="rounded-2xl border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] p-3">
+              <p className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--coral-gelap)]">
                 {um === 0 ? "Lahir" : `${um} bulan`}
               </p>
               <div className="mt-1.5 space-y-1">
                 {daftar.map((d) => {
                   const takBerlaku = dosisTakBerlaku(d.kode, anak.isi.vaksin);
                   const slot = isiSlot(anak.isi.vaksin, d.kode);
-                  const sudah = adaDosis(anak.isi.vaksin, d.kode);
-                  const c = !sudah ? centangMap.get(d.kode) : undefined;
-                  const bisaTandai = !sudah && !takBerlaku && !c;
+                  const sudahD = adaDosis(anak.isi.vaksin, d.kode);
+                  const c = !sudahD ? centangMap.get(d.kode) : undefined;
+                  const bisaTandai = !sudahD && !takBerlaku && !c;
                   return (
                     <div key={d.kode} className="text-sm">
                       <div className="flex items-center justify-between gap-2">
                         <span className={takBerlaku ? "text-[var(--teks-sekunder)] line-through opacity-60" : ""}>
-                          {sudah ? "✅" : c ? (c.verified ? "🔵" : "🟡") : takBerlaku ? "➖" : "⬜"} {d.nama}
+                          {sudahD ? "✅" : c ? (c.verified ? "🔵" : "🟡") : takBerlaku ? "➖" : "⚪"} {d.nama}
                           {slot?.merek && (
                             <span className="ml-1 rounded bg-[var(--bg)] px-1 py-0.5 text-[10px] font-bold text-[var(--teks-sekunder)]">
                               {slot.merek}
@@ -90,7 +105,7 @@ export default async function DetailAnakOrtu({
                           )}
                           {c && (
                             <span className="ml-1 rounded px-1 py-0.5 text-[10px] font-bold"
-                              style={{ background: c.verified ? "#e0f2fe" : "#fef7e0", color: c.verified ? "#075985" : "#a16207" }}>
+                              style={{ background: c.verified ? "var(--teal-muda)" : "var(--verif-muda)", color: c.verified ? "var(--teal-tua)" : "var(--verif-teks)" }}>
                               {c.verified ? "✓ diverifikasi kader" : "menunggu verifikasi"}
                             </span>
                           )}
@@ -102,26 +117,26 @@ export default async function DetailAnakOrtu({
                       {bisaTandai && (
                         <details className="mt-0.5 pl-6">
                           <summary className="cursor-pointer text-[11px] font-bold text-[var(--coral)]">
-                            tandai sudah (di faskes lain)
+                            tandai sudah ↗
                           </summary>
-                          <form action={tandaiOrtu} className="mt-1.5 flex flex-wrap items-end gap-2">
+                          <form action={tandaiOrtu} className="mt-1.5 rounded-xl border-2 border-[var(--coral-border)] bg-[var(--coral-muda)] p-2.5">
                             <input type="hidden" name="ref" value={anak.ref} />
                             <input type="hidden" name="kode" value={d.kode} />
-                            <label className="text-[10px] font-semibold text-[var(--teks-sekunder)]">
-                              Tanggal
-                              <input name="tgl" type="date" className="mt-0.5 block rounded-lg border border-[var(--garis)] px-2 py-1 text-xs" />
-                            </label>
-                            <label className="text-[10px] font-semibold text-[var(--teks-sekunder)]">
-                              Tempat (mis. RS/klinik)
-                              <input name="lokasi" className="mt-0.5 block rounded-lg border border-[var(--garis)] px-2 py-1 text-xs" placeholder="Klinik Anugerah" />
-                            </label>
-                            <button className="rounded-lg bg-[var(--coral)] px-3 py-1.5 text-[11px] font-bold text-white">
-                              Simpan
-                            </button>
+                            <div className="flex flex-wrap items-end gap-2">
+                              <label className="text-[10px] font-semibold text-[var(--teks-sekunder)]">
+                                Tanggal
+                                <input name="tgl" type="date" className="mt-0.5 block rounded-lg border-2 border-[var(--garis)] bg-white px-2 py-1 text-xs" />
+                              </label>
+                              <label className="text-[10px] font-semibold text-[var(--teks-sekunder)]">
+                                Tempat (mis. RS/klinik)
+                                <input name="lokasi" className="mt-0.5 block rounded-lg border-2 border-[var(--garis)] bg-white px-2 py-1 text-xs" placeholder="Klinik Anugerah" />
+                              </label>
+                              <button className="btn3d btn3d-coral px-3 py-1.5 text-[11px]">Simpan</button>
+                            </div>
+                            <p className="mt-1.5 text-[10px] text-[var(--coral-gelap)]">
+                              🟡 Akan berstatus menunggu sampai diverifikasi kader posyandu.
+                            </p>
                           </form>
-                          <p className="mt-1 text-[10px] text-[var(--teks-sekunder)]">
-                            Akan berstatus 🟡 sampai diverifikasi kader posyandu.
-                          </p>
                         </details>
                       )}
                     </div>
