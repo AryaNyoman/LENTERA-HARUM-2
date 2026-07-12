@@ -12,20 +12,27 @@ export default async function GantiSandiPage({
   const { galat } = await searchParams;
 
   return (
-    <main className="flex min-h-dvh items-center justify-center p-6">
+    <main className="flex min-h-dvh items-center justify-center bg-titik-kader p-6">
       <div className="w-full max-w-sm">
+        <div
+          className="pop mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full text-3xl"
+          style={{ background: "var(--kuning-muda)" }}
+        >
+          🔑
+        </div>
         <form
           action={gantiSandi}
-          className="rounded-2xl border border-[var(--garis)] bg-[var(--kartu)] p-6 shadow-sm"
+          className="pop pop-1 rounded-[var(--r-kartu)] border-2 border-[var(--krem-border)] bg-[var(--kartu)] p-6"
+          style={{ boxShadow: "0 8px 0 var(--teal-pastel)" }}
         >
-          <h1 className="text-base font-extrabold text-[var(--teal-tua)]">Ganti Sandi</h1>
-          <p className="mt-1 mb-4 text-xs text-[var(--teks-sekunder)]">
+          <h1 className="font-judul text-base font-extrabold text-[var(--teal-tua)]">Ganti Sandi</h1>
+          <p className="mt-1 mb-4 text-xs leading-relaxed text-[var(--teks-sekunder)]">
             {user.perluGantiSandi
-              ? "Sandi Anda masih sandi sementara — buat sandi baru dulu."
+              ? "Sandi Anda masih sandi sementara dari petugas. Ganti dulu ya, biar akun aman."
               : `Akun: ${user.username}`}
           </p>
           {galat && (
-            <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-[var(--merah)]">
+            <p className="mb-3 rounded-lg bg-[var(--merah-muda)] px-3 py-2 text-xs font-semibold text-[var(--merah-teks)]">
               {galat}
             </p>
           )}
@@ -35,7 +42,7 @@ export default async function GantiSandiPage({
               name="lama"
               type="password"
               autoComplete="current-password"
-              className="mt-1 w-full rounded-lg border border-[var(--garis)] px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2.5 text-base focus:border-[var(--teal)] focus:outline-none"
             />
           </label>
           <label className="mt-3 block text-xs font-semibold text-[var(--teks-sekunder)]">
@@ -44,7 +51,7 @@ export default async function GantiSandiPage({
               name="baru"
               type="password"
               autoComplete="new-password"
-              className="mt-1 w-full rounded-lg border border-[var(--garis)] px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2.5 text-base focus:border-[var(--teal)] focus:outline-none"
             />
           </label>
           <label className="mt-3 block text-xs font-semibold text-[var(--teks-sekunder)]">
@@ -53,13 +60,10 @@ export default async function GantiSandiPage({
               name="ulang"
               type="password"
               autoComplete="new-password"
-              className="mt-1 w-full rounded-lg border border-[var(--garis)] px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-[var(--r-input)] border-2 border-[var(--garis)] bg-[var(--krem-input)] px-3 py-2.5 text-base focus:border-[var(--teal)] focus:outline-none"
             />
           </label>
-          <button
-            type="submit"
-            className="mt-5 w-full rounded-xl bg-[var(--teal)] py-2.5 text-sm font-bold text-white hover:bg-[var(--teal-tua)]"
-          >
+          <button type="submit" className="btn3d btn3d-teal mt-5 w-full py-3 text-sm">
             Simpan sandi baru
           </button>
         </form>
