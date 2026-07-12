@@ -1,4 +1,3 @@
-import Kepala from "@/components/kepala";
 import NavBawah from "@/components/nav-bawah";
 import { wajibUser } from "@/lib/sesi";
 
@@ -11,10 +10,9 @@ const NAV = [
 ];
 
 export default async function OrtuLayout({ children }: { children: React.ReactNode }) {
-  const user = await wajibUser("ORTU", "ADMIN");
+  await wajibUser("ORTU", "ADMIN");
   return (
-    <div className="min-h-dvh pb-16">
-      <Kepala user={user} warna="var(--coral)" />
+    <div className="bg-titik-ortu min-h-dvh pb-20">
       {children}
       <NavBawah item={NAV} peran="ortu" />
     </div>

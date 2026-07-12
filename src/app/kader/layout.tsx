@@ -1,4 +1,3 @@
-import Kepala from "@/components/kepala";
 import NavBawah from "@/components/nav-bawah";
 import { wajibUser } from "@/lib/sesi";
 
@@ -10,10 +9,9 @@ const NAV = [
 ];
 
 export default async function KaderLayout({ children }: { children: React.ReactNode }) {
-  const user = await wajibUser("KADER", "ADMIN");
+  await wajibUser("KADER", "ADMIN");
   return (
-    <div className="min-h-dvh pb-16">
-      <Kepala user={user} />
+    <div className="bg-titik-kader min-h-dvh pb-20">
       {children}
       <NavBawah item={NAV} peran="kader" />
     </div>

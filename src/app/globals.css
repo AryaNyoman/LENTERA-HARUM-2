@@ -86,6 +86,11 @@ body {
   background-color: var(--bg-ortu);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Ccircle cx='8' cy='8' r='2' fill='%23e8704a' fill-opacity='.1'/%3E%3Ccircle cx='32' cy='28' r='2' fill='%23f2b705' fill-opacity='.08'/%3E%3C/svg%3E");
 }
+/* gerbang (login/daftar): campuran teal + coral + aksen plus kuning */
+.bg-titik-gerbang {
+  background-color: var(--bg-ortu);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Ccircle cx='8' cy='8' r='2' fill='%232e9e8f' fill-opacity='.08'/%3E%3Ccircle cx='32' cy='28' r='2' fill='%23e8704a' fill-opacity='.08'/%3E%3Cpath d='M40 8h4M42 6v4' stroke='%23f2b705' stroke-opacity='.18' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
 
 /* tepi scallop di bawah hero — --scallop = warna ujung gradien hero, diset per pemakaian */
 .scallop {
