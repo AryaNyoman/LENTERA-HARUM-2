@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { wajibUser } from "@/lib/sesi";
 import { ambilAnak } from "@/lib/anak";
 import { ambilAnakOrtu } from "@/lib/ortu";
-import { DOSIS_REGISTRY, adaDosis, minTglDosis, minUsiaHari, namaKode } from "@/lib/vaksin";
+import { DOSIS_REGISTRY, adaDosis, validasiDosis } from "@/lib/vaksin";
 
 function refKe(ref: string): { anakSimpusId: number | null; anakBaruId: number | null } | null {
   const m = /^([sb]):(\d+)$/.exec(ref);
@@ -32,11 +32,10 @@ export async function tandaiOrtu(formData: FormData): Promise<void> {
   if (Number.isNaN(Date.parse(tgl)) || Date.parse(tgl) < Date.parse(anak.isi.tglLahir)) {
     redirect(balik + "?galat=" + encodeURIComponent("Tanggal centang tidak valid."));
   }
-  if (tgl < minTglDosis(anak.isi.tglLahir, kode)) {
-    redirect(balik + "?galat=" + encodeURIComponent(
-      `Tanggal ${namaKode(kode)} terlalu dini — dosis ini minimal usia ${minUsiaHari(kode)} hari.`,
-    ));
-  }
+  // validasi kode centang thd aturan dosis — dosis resmi lama di-grandfather (hanya
+  // kode yang baru dicentang yang dicek: urutan seri + jendela min/max + interval)
+  const galat = validasiDosis({ ...anak.isi.vaksin, [kode]: tgl }, anak.isi.tglLahir, anak.isi.vaksin);
+  if (galat) redirect(balik + "?galat=" + encodeURIComponent(galat));
 
   const tempat = refKe(ref)!;
   const ada = await db.centangOrtu.findFirst({ where: { ...tempat, vaksinKode: kode } });
@@ -52,6 +51,24 @@ export async function tandaiOrtu(formData: FormData): Promise<void> {
   }
   await db.logAktivitas.create({ data: { userId: user.id, aksi: "CENTANG_ORTU", detail: `${ref} ${kode}` } });
   redirect(balik);
+}
+
+/** ORTU: hapus centang miliknya sendiri — hanya yang BELUM diverifikasi kader
+ *  (sekali diverifikasi, ortu tak bisa lagi ubah/hapus). */
+export async function hapusCentangOrtu(formData: FormData): Promise<void> {
+  const user = await wajibUser("ORTU", "ADMIN");
+  const id = Number(formData.get("id") ?? 0);
+  const row = await db.centangOrtu.findUnique({ where: { id } });
+  if (!row) redirect("/ortu/anakku");
+
+  const ref = row.anakSimpusId ? `s:${row.anakSimpusId}` : `b:${row.anakBaruId}`;
+  const anak = await ambilAnakOrtu(ref, user); // cek kepemilikan
+  if (!anak) redirect("/ortu/anakku");
+  if (row.verified) redirect(`/ortu/anak/${ref}`); // sudah diverifikasi — tak bisa dihapus ortu
+
+  await db.centangOrtu.delete({ where: { id } });
+  await db.logAktivitas.create({ data: { userId: user.id, aksi: "CENTANG_DIHAPUS_ORTU", detail: `${ref} ${row.vaksinKode}` } });
+  redirect(`/ortu/anak/${ref}`);
 }
 
 /** KADER: verifikasi (biru) atau tolak (hapus) centang orang tua. */

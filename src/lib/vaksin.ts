@@ -57,19 +57,75 @@ const SLOT_VARIAN: Record<string, string> = Object.fromEntries(
   Object.entries(VARIAN_MEREK).flatMap(([slot, varian]) => varian.map((v) => [v.kode, slot])),
 );
 
-/** Usia MINIMAL (hari) sebelum satu dosis boleh dicatat — dari umur ideal,
- *  1 bulan dihitung 28 hari (aturan pemilik: BCG/bOPV1 minimal 28 hari, dst).
+/** Aturan pemberian per SLOT dosis (hari, dihitung dari tanggal lahir).
+ *  minHari/maxHari = jendela usia; setelahSlot+intervalHari = jarak minimal
+ *  dari dosis sebelumnya dalam seri (dari tanggal dosis sebelumnya yang TERISI).
+ *  wajibUrutan=false → interval berlaku HANYA bila dosis sebelumnya sudah terisi
+ *  (tak wajib diisi dulu; cth PCV3 yang boleh lepas dari PCV2).
+ *  Sumber: arahan pemilik (Aryawa) 13 Jul 2026 + interval seri 28 hari. */
+export interface AturanDosis {
+  minHari: number;
+  maxHari?: number;
+  setelahSlot?: string;
+  intervalHari?: number;
+  wajibUrutan?: boolean;
+}
+
+export const ATURAN_DOSIS: Record<string, AturanDosis> = {
+  HB0_1_7H: { minHari: 0, maxHari: 7 },
+  BCG: { minHari: 8 },
+  POLIO1: { minHari: 28 },
+  POLIO2: { minHari: 56, setelahSlot: "POLIO1", intervalHari: 28 },
+  POLIO3: { minHari: 84, setelahSlot: "POLIO2", intervalHari: 28 },
+  POLIO4: { minHari: 112, setelahSlot: "POLIO3", intervalHari: 28 },
+  PENTA1: { minHari: 56 },
+  PENTA2: { minHari: 84, setelahSlot: "PENTA1", intervalHari: 28 },
+  PENTA3: { minHari: 112, setelahSlot: "PENTA2", intervalHari: 28 },
+  PCV1: { minHari: 56 },
+  PCV2: { minHari: 84, setelahSlot: "PCV1", intervalHari: 28 },
+  PCV3: { minHari: 336, setelahSlot: "PCV2", intervalHari: 56, wajibUrutan: false },
+  ROTA1: { minHari: 56 },
+  ROTA2: { minHari: 84, setelahSlot: "ROTA1", intervalHari: 28 },
+  ROTA3: { minHari: 112, setelahSlot: "ROTA2", intervalHari: 28 },
+  IPV1: { minHari: 112 },
+  IPV2: { minHari: 252 },
+  MR: { minHari: 252 },
+  DPT_BADUTA: { minHari: 504, setelahSlot: "PENTA3", intervalHari: 336 },
+  MR_BADUTA: { minHari: 504, setelahSlot: "MR", intervalHari: 168 },
+};
+
+/** Tambah/kurang hari dari tanggal (YYYY-MM-DD) secara UTC-safe — hindari geser
+ *  tanggal akibat parsing lokal di timezone UTC+ (server Mataram = WITA/UTC+8). */
+function tglTambahHari(tgl: string, hari: number): string {
+  const d = new Date(tgl + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + hari);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Selisih hari (b − a) antar dua tanggal (YYYY-MM-DD), UTC-safe. */
+function selisihHari(dariTgl: string, keTgl: string): number {
+  const a = new Date(dariTgl + "T00:00:00Z").getTime();
+  const b = new Date(keTgl + "T00:00:00Z").getTime();
+  return Math.round((b - a) / 86400000);
+}
+
+const BULAN_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+function formatTglIndo(tgl: string): string {
+  const [y, m, d] = tgl.split("-").map(Number);
+  return `${d} ${BULAN_ID[m - 1]} ${y}`;
+}
+
+/** Usia MINIMAL (hari) sebelum satu dosis boleh dicatat — baseline dari ATURAN_DOSIS
+ *  (belum memperhitungkan interval antar-dosis; itu tugas `batasDosis`).
  *  Menerima kode slot maupun kode varian merek. */
 export function minUsiaHari(kode: string): number {
   const slot = SLOT_VARIAN[kode] ?? kode;
-  return (UMUR_IDEAL[slot] ?? 0) * 28;
+  return ATURAN_DOSIS[slot]?.minHari ?? 0;
 }
 
 /** Tanggal paling awal (YYYY-MM-DD) satu dosis boleh diberikan utk anak lahir `tglLahir`. */
 export function minTglDosis(tglLahir: string, kode: string): string {
-  const d = new Date(tglLahir + "T00:00:00");
-  d.setDate(d.getDate() + minUsiaHari(kode));
-  return d.toISOString().slice(0, 10);
+  return tglTambahHari(tglLahir, minUsiaHari(kode));
 }
 
 /** Nama tampil sebuah kode (slot atau varian merek) — untuk pesan galat. */
@@ -93,6 +149,80 @@ export function tglDosis(vaksin: Record<string, string>, slotKode: string): stri
     return "";
   }
   return vaksin[slotKode] ?? "";
+}
+
+/** Kode slot yang WAJIB terisi lebih dulu (order seri) sebelum slot ini boleh diisi —
+ *  undefined bila tak ada aturan urutan berlaku (termasuk aturan "lunak", cth PCV3).
+ *  Menerima kode slot maupun kode varian merek. */
+export function slotSyaratSebelum(kode: string): string | undefined {
+  const slot = SLOT_VARIAN[kode] ?? kode;
+  const a = ATURAN_DOSIS[slot];
+  if (!a || !a.setelahSlot || a.wajibUrutan === false) return undefined;
+  return a.setelahSlot;
+}
+
+/** Jendela usia (min–max, hari sejak lahir) satu slot dosis untuk anak `tglLahir`,
+ *  dgn `vaksin` (dosis lain yang sudah terisi) untuk menghitung interval seri.
+ *  `alasan` = teks ramah utk pesan galat. Menerima kode slot maupun kode varian merek. */
+export function batasDosis(
+  vaksin: Record<string, string>,
+  slotKode: string,
+  tglLahir: string,
+): { min: string; max?: string; alasan?: string } {
+  const slot = SLOT_VARIAN[slotKode] ?? slotKode;
+  const a = ATURAN_DOSIS[slot] ?? { minHari: 0 };
+  const nama = namaKode(slot);
+
+  let minHari = a.minHari;
+  let alasan = `${nama} minimal usia ${minHari} hari.`;
+
+  if (a.setelahSlot && a.intervalHari != null) {
+    const tglSebelum = tglDosis(vaksin, a.setelahSlot);
+    if (tglSebelum) {
+      const tglIntervalMin = tglTambahHari(tglSebelum, a.intervalHari);
+      const hariIntervalMin = selisihHari(tglLahir, tglIntervalMin);
+      if (hariIntervalMin > minHari) {
+        minHari = hariIntervalMin;
+        alasan = `${nama} minimal ${a.intervalHari} hari setelah ${namaKode(a.setelahSlot)} (${formatTglIndo(tglIntervalMin)}).`;
+      }
+    }
+  }
+
+  const min = tglTambahHari(tglLahir, minHari);
+  const max = a.maxHari != null ? tglTambahHari(tglLahir, a.maxHari) : undefined;
+  // Guard: pesan jendela min–max hanya dipakai bila interval TIDAK menggeser min — bila
+  // suatu slot kelak punya maxHari sekaligus interval yang menang, alasan interval lebih
+  // spesifik & sudah menyebut tanggal minimalnya, jangan ditimpa.
+  if (a.maxHari != null && minHari === a.minHari) {
+    alasan = `${nama} hanya boleh ${a.minHari}–${a.maxHari} hari setelah lahir.`;
+  }
+
+  return { min, max, alasan };
+}
+
+/** Validasi semua dosis terisi: urutan seri ("isi dulu dosis sebelumnya") + jendela
+ *  min/max + interval antar dosis. Mengembalikan pesan galat ramah, atau null bila sah.
+ *  `vaksinLama` = dosis tersimpan sebelumnya (mode edit): nilai yang TIDAK berubah
+ *  dilewati ("grandfather") supaya data lama yang sah menurut aturan lama tidak
+ *  menggagalkan edit field lain; nilai yang berubah/baru tetap divalidasi penuh. */
+export function validasiDosis(
+  vaksin: Record<string, string>,
+  tglLahir: string,
+  vaksinLama: Record<string, string> = {},
+): string | null {
+  for (const [kode, tgl] of Object.entries(vaksin)) {
+    if (!tgl) continue;
+    if (tgl === vaksinLama[kode]) continue; // tak berubah dari yang tersimpan → grandfather
+    const perlu = slotSyaratSebelum(kode);
+    if (perlu && !tglDosis(vaksin, perlu)) {
+      return `Isi dulu ${namaKode(perlu)} sebelum ${namaKode(kode)}.`;
+    }
+    const batas = batasDosis(vaksin, kode, tglLahir);
+    if (tgl < batas.min || (batas.max && tgl > batas.max)) {
+      return batas.alasan ?? `Tanggal ${namaKode(kode)} di luar batas usia yang diperbolehkan.`;
+    }
+  }
+  return null;
 }
 
 /** Merek DPT anak (dari dosis terisi) — Hexavalen mencakup IPV. */

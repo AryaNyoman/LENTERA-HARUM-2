@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { segel, buka, type IsiAnak } from "@/lib/brankas";
 import { wajibUser } from "@/lib/sesi";
 import { binaanIds } from "@/lib/anak";
-import { DOSIS_REGISTRY, VARIAN_MEREK, minTglDosis, minUsiaHari, namaKode } from "@/lib/vaksin";
+import { DOSIS_REGISTRY, VARIAN_MEREK, namaKode, validasiDosis } from "@/lib/vaksin";
 
 /** Semua kode input dosis yang sah (kode slot + seluruh varian merek). */
 const KODE_SAH = new Set<string>([
@@ -18,8 +18,14 @@ function galatKe(url: string, pesan: string): never {
 }
 
 /** Baca + validasi field anak dari FormData (dipakai form kader & ortu). Dosis: name
- *  "vaksin__<KODE>". Melempar redirect ke `balik` bila ada input tidak valid. */
-function bacaFormAnak(formData: FormData, balik: string): { isi: IsiAnak; posyanduId: number } {
+ *  "vaksin__<KODE>". Melempar redirect ke `balik` bila ada input tidak valid.
+ *  `vaksinLama` (mode edit) = dosis tersimpan: nilai yang tak berubah lolos tanpa
+ *  cek aturan ulang — lihat validasiDosis. */
+function bacaFormAnak(
+  formData: FormData,
+  balik: string,
+  vaksinLama: Record<string, string> = {},
+): { isi: IsiAnak; posyanduId: number } {
   const nama = String(formData.get("nama") ?? "").trim();
   const tglLahir = String(formData.get("tglLahir") ?? "").trim();
   const jk = String(formData.get("jk") ?? "");
@@ -45,12 +51,13 @@ function bacaFormAnak(formData: FormData, balik: string): { isi: IsiAnak; posyan
     if (!KODE_SAH.has(kode)) continue;
     if (Number.isNaN(Date.parse(tgl))) galatKe(balik, `Tanggal ${namaKode(kode)} tidak valid.`);
     if (Date.parse(tgl) < Date.parse(tglLahir)) galatKe(balik, `Tanggal ${namaKode(kode)} mendahului tanggal lahir.`);
-    // usia minimal per dosis (1 bulan = 28 hari) — cegah salah ketik tanggal terlalu dini
-    if (tgl < minTglDosis(tglLahir, kode)) {
-      galatKe(balik, `Tanggal ${namaKode(kode)} terlalu dini — dosis ini minimal usia ${minUsiaHari(kode)} hari.`);
-    }
     vaksin[kode] = tgl;
   }
+
+  // urutan seri & jendela usia (min/max + interval antar dosis) — dicek setelah semua
+  // dosis submit ini terkumpul, supaya interval antar-input dalam satu submit ikut tervalidasi
+  const galatDosis = validasiDosis(vaksin, tglLahir, vaksinLama);
+  if (galatDosis) galatKe(balik, galatDosis);
 
   return { isi: { nama, tglLahir, jk, namaOrtu, nik, noHp, alamat, rtRw, vaksin }, posyanduId };
 }
@@ -60,16 +67,28 @@ export async function simpanAnakBaru(formData: FormData): Promise<void> {
   const user = await wajibUser("KADER", "ADMIN");
   const idEdit = Number(formData.get("id") ?? 0) || 0;
   const balik = idEdit ? `/kader/anak-baru?ref=b:${idEdit}` : "/kader/anak-baru";
-  const { isi, posyanduId } = bacaFormAnak(formData, balik);
-
   const ids = await binaanIds(user);
-  if (!ids.includes(posyanduId)) galatKe(balik, "Posyandu di luar binaan Anda.");
-  const tersegel = segel(isi);
 
+  // mode edit: ambil row lama DULU (cek kepemilikan+status) supaya dosis tersimpan yang
+  // tak berubah lolos validasi aturan baru ("grandfather") — form edit selalu men-submit
+  // ulang semua tanggal lama, jangan sampai edit alamat/no HP gagal gara-gara dosis lama.
+  let vaksinLama: Record<string, string> = {};
   if (idEdit) {
     const ada = await db.anakBaru.findUnique({ where: { id: idEdit } });
     if (!ada || !ids.includes(ada.posyanduId)) galatKe("/kader/daftar-bayi", "Anak tidak ditemukan.");
     if (ada.status === "MASUK_SIMPUS") galatKe(`/kader/anak/b:${idEdit}`, "Sudah masuk SIMPUS — edit di SIMPUS.");
+    try {
+      vaksinLama = buka<IsiAnak>({ iv: ada.iv, tag: ada.tag, data: ada.data }).vaksin ?? {};
+    } catch {
+      // dekripsi gagal → tanpa grandfather, validasi penuh
+    }
+  }
+
+  const { isi, posyanduId } = bacaFormAnak(formData, balik, vaksinLama);
+  if (!ids.includes(posyanduId)) galatKe(balik, "Posyandu di luar binaan Anda.");
+  const tersegel = segel(isi);
+
+  if (idEdit) {
     await db.anakBaru.update({ where: { id: idEdit }, data: { posyanduId, ...tersegel } });
     await db.logAktivitas.create({ data: { userId: user.id, aksi: "ANAK_DIEDIT", detail: `b:${idEdit}` } });
     redirect(`/kader/anak/b:${idEdit}`);
@@ -82,12 +101,30 @@ export async function simpanAnakBaru(formData: FormData): Promise<void> {
   redirect(`/kader/anak/b:${row.id}`);
 }
 
-/** Simpan anak baru yang diinput SENDIRI oleh orang tua. Ditandai olehOrtu + belum
- *  terverifikasi (menunggu kader), lalu OTOMATIS diklaim ke ortu (tanpa QR). */
+/** Simpan (buat/edit) anak yang diinput SENDIRI oleh orang tua. Tanpa "id" → perilaku
+ *  create seperti semula: ditandai olehOrtu + belum terverifikasi (menunggu kader), lalu
+ *  OTOMATIS diklaim ke ortu (tanpa QR). Dengan "id" → edit anak miliknya sendiri yang
+ *  masih DRAF (pola sama simpanAnakBaru cabang edit: ambil row lama dulu → vaksinLama
+ *  utk grandfather, baru bacaFormAnak). */
 export async function simpanAnakOrtu(formData: FormData): Promise<void> {
   const user = await wajibUser("ORTU");
-  const balik = "/ortu/anak-baru";
-  const { isi, posyanduId } = bacaFormAnak(formData, balik);
+  const idEdit = Number(formData.get("id") ?? 0) || 0;
+  const balik = idEdit ? `/ortu/anak-baru?ref=b:${idEdit}` : "/ortu/anak-baru";
+
+  let vaksinLama: Record<string, string> = {};
+  if (idEdit) {
+    const milik = await db.klaimAnak.findFirst({ where: { userId: user.id, anakBaruId: idEdit }, include: { anakBaru: true } });
+    const ada = milik?.anakBaru;
+    if (!ada || !ada.olehOrtu) galatKe("/ortu/anakku", "Anak tidak ditemukan.");
+    if (ada.status !== "DRAF") galatKe(`/ortu/anak/b:${idEdit}`, "Sudah disetor ke SIMPUS — minta kader untuk mengubahnya.");
+    try {
+      vaksinLama = buka<IsiAnak>({ iv: ada.iv, tag: ada.tag, data: ada.data }).vaksin ?? {};
+    } catch {
+      // dekripsi gagal → tanpa grandfather, validasi penuh
+    }
+  }
+
+  const { isi, posyanduId } = bacaFormAnak(formData, balik, vaksinLama);
 
   const pos = await db.posyandu.findUnique({ where: { id: posyanduId } });
   if (!pos) galatKe(balik, "Pilih posyandu.");
@@ -99,6 +136,12 @@ export async function simpanAnakOrtu(formData: FormData): Promise<void> {
     await db.user.update({ where: { id: user.id }, data: { kelurahanId: pos.kelurahanId } });
   }
   const tersegel = segel(isi);
+
+  if (idEdit) {
+    await db.anakBaru.update({ where: { id: idEdit }, data: { posyanduId, ...tersegel } });
+    await db.logAktivitas.create({ data: { userId: user.id, aksi: "ANAK_DIEDIT_ORTU", detail: `b:${idEdit}` } });
+    redirect(`/ortu/anak/b:${idEdit}`);
+  }
 
   // create + klaim digabung (nested) — hemat satu bolak-balik DB per submit
   const row = await db.anakBaru.create({
@@ -179,6 +222,20 @@ export async function isiUntukEdit(id: number): Promise<(IsiAnak & { posyanduId:
   const ids = await binaanIds(user);
   const a = await db.anakBaru.findUnique({ where: { id } });
   if (!a || !ids.includes(a.posyanduId)) return null;
+  try {
+    return { ...buka<IsiAnak>({ iv: a.iv, tag: a.tag, data: a.data }), posyanduId: a.posyanduId };
+  } catch {
+    return null;
+  }
+}
+
+/** Isi anak-baru untuk mode edit oleh ORTU — hanya anak miliknya sendiri (klaim), yang ia
+ *  input sendiri (olehOrtu) dan masih DRAF (pola sama isiUntukEdit). */
+export async function isiUntukEditOrtu(id: number): Promise<(IsiAnak & { posyanduId: number }) | null> {
+  const user = await wajibUser("ORTU");
+  const milik = await db.klaimAnak.findFirst({ where: { userId: user.id, anakBaruId: id }, include: { anakBaru: true } });
+  const a = milik?.anakBaru;
+  if (!a || !a.olehOrtu || a.status !== "DRAF") return null;
   try {
     return { ...buka<IsiAnak>({ iv: a.iv, tag: a.tag, data: a.data }), posyanduId: a.posyanduId };
   } catch {

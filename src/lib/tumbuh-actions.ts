@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { wajibUser } from "@/lib/sesi";
-import { binaanIds, ambilAnak, hitungUsiaBulan } from "@/lib/anak";
+import { ambilAnak, hitungUsiaBulan } from "@/lib/anak";
 import { ambilAnakOrtu } from "@/lib/ortu";
 
 /** Cek hak atas anak: kader/admin lewat binaan, ortu lewat klaim. Kembalikan tglLahir. */
