@@ -64,7 +64,7 @@ export default async function DaftarPage({
           </label>
           <label className={`${lbl} mt-3`}>
             No HP <span className="font-semibold text-[var(--abu)]">(dipakai untuk login)</span>
-            <input name="noHp" inputMode="numeric" className={inp} placeholder="08…" />
+            <input name="noHp" inputMode="numeric" maxLength={13} className={inp} placeholder="08…" />
           </label>
           <label className={`${lbl} mt-3`}>
             Kelurahan tempat tinggal

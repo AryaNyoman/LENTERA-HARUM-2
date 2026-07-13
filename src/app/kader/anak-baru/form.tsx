@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { simpanAnakBaru } from "@/lib/anak-actions";
-import { DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK, minTglDosis } from "@/lib/vaksin";
+import { DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK, batasDosis } from "@/lib/vaksin";
 import type { IsiAnak } from "@/lib/brankas";
 import InputTanggal from "@/components/input-tanggal";
 
@@ -16,6 +16,12 @@ function merekAwal(vaksin: Record<string, string>): Record<string, string> {
     m[slot] = terisi ? terisi.kode : varian[0].kode;
   }
   return m;
+}
+
+/** Format ketikan RT/RW jadi "###/###" — buang non-digit, maks 6 digit, sisip "/" setelah digit ke-3. */
+function formatRtRw(raw: string): string {
+  const digit = raw.replace(/\D/g, "").slice(0, 6);
+  return digit.length > 3 ? `${digit.slice(0, 3)}/${digit.slice(3)}` : digit;
 }
 
 function emojiUsia(um: number): string {
@@ -59,6 +65,7 @@ export default function FormAnak({
 }) {
   const [merek, setMerek] = useState<Record<string, string>>(() => merekAwal(awal?.vaksin ?? {}));
   const [tglLahir, setTglLahir] = useState(awal?.tglLahir ?? "");
+  const [rtRw, setRtRw] = useState(awal?.rtRw ?? "");
 
   // pilih kelurahan dulu → daftar posyandu menyempit (tidak panjang sekali)
   const daftarKelurahan = [...new Set(posyandu.map((p) => p.kelurahan))];
@@ -192,7 +199,7 @@ export default function FormAnak({
           </label>
           <label className={`${lbl} min-w-0`}>
             No HP ortu
-            <input name="noHp" inputMode="numeric" defaultValue={awal?.noHp} className={inp} style={inpStyle} placeholder="08…" />
+            <input name="noHp" inputMode="numeric" maxLength={13} defaultValue={awal?.noHp} className={inp} style={inpStyle} placeholder="08…" />
           </label>
         </div>
         <label className={`${lbl} mt-3`}>
@@ -206,7 +213,16 @@ export default function FormAnak({
           </label>
           <label className={`${lbl} min-w-0`}>
             RT/RW
-            <input name="rtRw" defaultValue={awal?.rtRw} className={inp} style={inpStyle} placeholder="003/001" />
+            <input
+              name="rtRw"
+              inputMode="numeric"
+              maxLength={7}
+              value={rtRw}
+              onChange={(e) => setRtRw(formatRtRw(e.target.value))}
+              className={inp}
+              style={inpStyle}
+              placeholder="003/001"
+            />
           </label>
         </div>
       </section>
@@ -237,6 +253,7 @@ export default function FormAnak({
                 {tampil.map((d) => {
                   const varian = VARIAN_MEREK[d.kode];
                   const kodeAktif = varian ? merek[d.kode] : d.kode;
+                  const batas = tglLahir ? batasDosis({}, kodeAktif, tglLahir) : undefined;
                   if (!varian) {
                     return (
                       <div key={d.kode} className="flex items-center gap-2.5 py-[5px]">
@@ -244,7 +261,8 @@ export default function FormAnak({
                         <InputTanggal
                           key={`tgl-${kodeAktif}`}
                           name={`vaksin__${kodeAktif}`}
-                          min={tglLahir ? minTglDosis(tglLahir, kodeAktif) : undefined}
+                          min={batas?.min}
+                          max={batas?.max}
                           defaultValue={awal?.vaksin?.[kodeAktif] ?? ""}
                           bungkus="relative inline-block w-[150px] shrink-0"
                           className={inpTgl}
@@ -277,7 +295,8 @@ export default function FormAnak({
                       <InputTanggal
                         key={`tgl-${kodeAktif}`}
                         name={`vaksin__${kodeAktif}`}
-                        min={tglLahir ? minTglDosis(tglLahir, kodeAktif) : undefined}
+                        min={batas?.min}
+                        max={batas?.max}
                         defaultValue={awal?.vaksin?.[kodeAktif] ?? ""}
                         bungkus="relative mt-1.5 block"
                         className="h-[42px] w-full rounded-xl border-2 px-2.5 text-sm font-semibold outline-none"

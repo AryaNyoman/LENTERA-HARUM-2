@@ -110,7 +110,6 @@ export default async function DashboardKader() {
               </p>
               <p className="text-[11px] font-semibold leading-snug text-[var(--teks-sekunder)]">
                 Export Excel, lalu serahkan ke petugas SIMPUS ya!
-                {tungguVerif > 0 && <> ({tungguVerif} lainnya menunggu verifikasi — belum ikut.)</>}
               </p>
             </div>
             <a href="/kader/export" className="btn3d btn3d-coral flex h-10 shrink-0 items-center rounded-[14px] px-3.5 text-[13px]" style={{ boxShadow: "0 4px 0 var(--coral-tua)" }}>
@@ -118,7 +117,7 @@ export default async function DashboardKader() {
             </a>
           </div>
         )}
-        {siapSetor === 0 && tungguVerif > 0 && (
+        {tungguVerif > 0 && (
           <Link
             href="/kader/daftar-bayi"
             className="pop pop-5 mt-3 flex items-center gap-3 rounded-[22px] border-2 bg-[var(--kartu)] px-4 py-3.5 transition-transform active:scale-[.97]"
@@ -130,7 +129,7 @@ export default async function DashboardKader() {
                 {tungguVerif} anak isian ortu menunggu verifikasi
               </span>
               <span className="block text-[11px] font-semibold leading-snug text-[var(--teks-sekunder)]">
-                Belum ada yang bisa disetor — verifikasi dulu di Daftar Bayi, baru Export.
+                Buka kartunya di Daftar Bayi untuk memeriksa — belum ikut Export sampai diverifikasi.
               </span>
             </span>
           </Link>

@@ -56,7 +56,7 @@ export async function daftarOrtu(formData: FormData): Promise<void> {
   const kelurahanId = Number(formData.get("kelurahanId") ?? 0) || 0;
 
   if (nama.length < 3) redirect("/daftar?galat=Nama+minimal+3+huruf");
-  if (!/^08\d{8,}$/.test(noHp)) redirect("/daftar?galat=No+HP+tidak+valid+(mulai+08,+min+10+digit)");
+  if (!/^08\d{8,11}$/.test(noHp)) redirect("/daftar?galat=No+HP+tidak+valid+(mulai+08,+10-13+digit)");
   if (!kelurahanId || !(await db.kelurahan.findUnique({ where: { id: kelurahanId } }))) {
     redirect("/daftar?galat=Pilih+kelurahan+tempat+tinggal");
   }
