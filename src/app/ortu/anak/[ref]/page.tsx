@@ -10,8 +10,7 @@ import {
 } from "@/lib/vaksin";
 import TumbuhBagian from "@/components/tumbuh-bagian";
 import InputTanggal from "@/components/input-tanggal";
-import { daftarCentang, tandaiOrtu } from "@/lib/centang-actions";
-import { hapusAnakOrtu } from "@/lib/anak-actions";
+import { daftarCentang, tandaiOrtu, hapusCentangOrtu } from "@/lib/centang-actions";
 
 function isiSlot(vaksin: Record<string, string>, kode: string): { tgl: string; merek?: string } | null {
   const varian = VARIAN_MEREK[kode];
@@ -81,6 +80,16 @@ export default async function DetailAnakOrtu({
     )
     .map(([um]) => um);
   const umKejar = grupTerlewat.length > 0 ? Math.min(...grupTerlewat) : -1;
+  const umTerlambatSet = new Set(grupTerlewat);
+
+  // kelompok mendatang terdekat (belum lengkap, belum terlambat) — ikut default terbuka
+  const umBerikutnya = [...grup.entries()]
+    .filter(([um, daftar]) =>
+      !umTerlambatSet.has(um) &&
+      daftar.some((d) => !dosisTakBerlaku(d.kode, anak.isi.vaksin) && !adaDosis(anak.isi.vaksin, d.kode)),
+    )
+    .map(([um]) => um)
+    .sort((a, b) => a - b)[0] ?? -1;
 
   const usiaKini = labelUsia(hitungUsiaBulan(anak.isi.tglLahir));
 
@@ -140,23 +149,48 @@ export default async function DetailAnakOrtu({
         <div className="mt-3.5 flex flex-col gap-2.5">
           {[...grup.entries()].map(([um, daftar], gi) => {
             const kejar = um === umKejar;
+            const relevanGrup = daftar.filter((d) => !dosisTakBerlaku(d.kode, anak.isi.vaksin));
+            const sudahGrup = relevanGrup.filter((d) => adaDosis(anak.isi.vaksin, d.kode)).length;
+            const bukaDefault = umTerlambatSet.has(um) || um === umBerikutnya;
             return (
-              <div
+              <details
                 key={um}
-                className={`pop pop-${Math.min(gi + 1, 6)} relative rounded-[20px] border-2 bg-[var(--kartu)] px-3.5 py-3 ${kejar ? "mt-1" : ""}`}
+                open={bukaDefault}
+                className={`pop pop-${Math.min(gi + 1, 6)} group/g relative rounded-[20px] border-2 bg-[var(--kartu)] px-3.5 py-3 ${kejar ? "mt-1" : ""}`}
                 style={{ borderColor: kejar ? "var(--merah-border)" : "var(--garis-ortu)" }}
               >
-                {kejar && (
-                  <span
-                    className="font-judul absolute -top-2.5 right-3 rounded-full bg-[var(--merah)] px-2.5 py-0.5 text-[9.5px] font-bold text-white"
-                    style={{ transform: "rotate(1.5deg)" }}
-                  >
-                    waktunya kejar!
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+                  {kejar && (
+                    <span
+                      className="font-judul absolute -top-2.5 right-3 rounded-full bg-[var(--merah)] px-2.5 py-0.5 text-[9.5px] font-bold text-white"
+                      style={{ transform: "rotate(1.5deg)" }}
+                    >
+                      waktunya kejar!
+                    </span>
+                  )}
+                  <span className="font-judul text-xs font-bold text-[#c9a689]">
+                    {emojiUsia(um)} {um === 0 ? "LAHIR" : `${um} BULAN`}
                   </span>
-                )}
-                <p className="font-judul mb-1.5 text-xs font-bold text-[#c9a689]">
-                  {emojiUsia(um)} {um === 0 ? "LAHIR" : `${um} BULAN`}
-                </p>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <span
+                      className="font-judul rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                      style={
+                        relevanGrup.length === 0
+                          ? { background: "#f6f1ea", color: "var(--abu)" }
+                          : sudahGrup === relevanGrup.length
+                            ? { background: "var(--hijau-muda)", color: "var(--hijau-teks)" }
+                            : { background: "var(--coral-muda)", color: "#d95f38" }
+                      }
+                    >
+                      {sudahGrup}/{relevanGrup.length} ✓
+                    </span>
+                    <span className="font-judul text-[10px] font-bold text-[#c9a689]">
+                      <span className="group-open/g:hidden">▾</span>
+                      <span className="hidden group-open/g:inline">▴</span>
+                    </span>
+                  </span>
+                </summary>
+                <div className="mt-1.5">
                 {daftar.map((d) => {
                   const takBerlaku = dosisTakBerlaku(d.kode, anak.isi.vaksin);
                   const slot = isiSlot(anak.isi.vaksin, d.kode);
@@ -194,26 +228,69 @@ export default async function DetailAnakOrtu({
                       </div>
                     );
                   }
-                  if (c) {
+                  if (c && c.verified) {
+                    // sudah diverifikasi kader — tanpa aksi, ortu tak bisa ubah/hapus lagi
                     return (
                       <div key={d.kode} className="flex items-center gap-2 py-1">
-                        <span
-                          className="font-judul flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-xs font-extrabold"
-                          style={c.verified ? { background: "var(--teal)", color: "#fff" } : { background: "var(--verif)", color: "var(--verif-pekat)" }}
-                        >
+                        <span className="font-judul flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-xs font-extrabold" style={{ background: "var(--teal)", color: "#fff" }}>
                           !
                         </span>
                         <span className="min-w-0 flex-1 text-[13px] font-bold">
                           {d.nama}
-                          <span
-                            className="font-judul ml-1.5 rounded-md px-1.5 py-0.5 text-[9.5px] font-bold"
-                            style={c.verified ? { background: "var(--teal-muda)", color: "var(--teal-gelap)" } : { background: "var(--verif-muda)", color: "var(--verif-teks)" }}
-                          >
-                            {c.verified ? "✓ diverifikasi kader" : "🟡 menunggu verifikasi"}
+                          <span className="font-judul ml-1.5 rounded-md px-1.5 py-0.5 text-[9.5px] font-bold" style={{ background: "var(--teal-muda)", color: "var(--teal-gelap)" }}>
+                            ✓ diverifikasi kader
                           </span>
                         </span>
                         <span className="shrink-0 text-[11px] font-semibold text-[var(--abu)]">{fmtTglId(c.tgl)}</span>
                       </div>
+                    );
+                  }
+                  if (c) {
+                    // belum diverifikasi — ortu masih bisa ubah tanggal/lokasi atau hapus catatannya
+                    return (
+                      <details key={d.kode} className="group py-1">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+                          <span className="font-judul flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-xs font-extrabold" style={{ background: "var(--verif)", color: "var(--verif-pekat)" }}>
+                            !
+                          </span>
+                          <span className="min-w-0 flex-1 text-[13px] font-bold">
+                            {d.nama}
+                            <span className="font-judul ml-1.5 rounded-md px-1.5 py-0.5 text-[9.5px] font-bold" style={{ background: "var(--verif-muda)", color: "var(--verif-teks)" }}>
+                              🟡 menunggu verifikasi
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-[11px] font-semibold text-[var(--abu)]">{fmtTglId(c.tgl)}</span>
+                          <span className="font-judul shrink-0 text-[10.5px] font-bold" style={{ color: "#d95f38" }}>
+                            <span className="group-open:hidden">ubah ▸</span>
+                            <span className="hidden group-open:inline">tutup ▴</span>
+                          </span>
+                        </summary>
+                        <div className="mt-1.5 rounded-2xl border-[1.5px] border-[var(--coral-border)] px-3 py-2.5" style={{ background: "#fdf4f0" }}>
+                          <form action={tandaiOrtu}>
+                            <input type="hidden" name="ref" value={anak.ref} />
+                            <input type="hidden" name="kode" value={d.kode} />
+                            <div className="mt-1.5 grid grid-cols-2 gap-2">
+                              <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
+                                Tanggal
+                                <InputTanggal name="tgl" defaultValue={c.tgl} min={minTglDosis(anak.isi.tglLahir, d.kode)} bungkus="relative mt-1 block" className="h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" />
+                              </label>
+                              <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
+                                Tempat
+                                <input name="lokasi" defaultValue={c.lokasi} className="mt-1 h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" placeholder="mis. Klinik Anugerah" />
+                              </label>
+                            </div>
+                            <button className="btn3d btn3d-coral mt-2 h-[42px] w-full rounded-[13px] text-[13px]" style={{ boxShadow: "0 4px 0 var(--coral-tua)" }}>
+                              Simpan perubahan
+                            </button>
+                          </form>
+                          <form action={hapusCentangOrtu} className="mt-1.5">
+                            <input type="hidden" name="id" value={c.id} />
+                            <button className="btn-garis h-9 w-full rounded-xl border-2 border-[var(--merah)] text-[11px] text-[var(--merah)]">
+                              🗑 Hapus catatan ini
+                            </button>
+                          </form>
+                        </div>
+                      </details>
                     );
                   }
                   return (
@@ -264,30 +341,13 @@ export default async function DetailAnakOrtu({
                     </details>
                   );
                 })}
-              </div>
+                </div>
+              </details>
             );
           })}
         </div>
 
         <TumbuhBagian refAnak={anak.ref} jk={anak.isi.jk} balik={`/ortu/anak/${anak.ref}`} />
-
-        {anak.sumber === "BARU" && anak.olehOrtu && anak.status === "DRAF" && (
-          <details className="mt-4 rounded-[20px] border-2 border-[var(--merah-border)] bg-[var(--kartu)] px-4 py-3">
-            <summary className="font-judul cursor-pointer list-none text-[13px] font-bold text-[var(--merah-teks)] [&::-webkit-details-marker]:hidden">
-              🗑️ Hapus data anak ini ▸
-            </summary>
-            <p className="mt-1.5 text-[11px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
-              Data <b>{anak.isi.nama}</b> yang Anda isi sendiri akan dihapus <b>permanen</b> dari
-              website (termasuk catatan tumbuh &amp; centang). Salah isi / dobel? Ini tempatnya.
-            </p>
-            <form action={hapusAnakOrtu} className="mt-2.5">
-              <input type="hidden" name="id" value={anak.id} />
-              <button className="btn-garis h-11 rounded-[13px] border-2 border-[var(--merah)] px-4 text-xs text-[var(--merah)]">
-                Ya, hapus permanen
-              </button>
-            </form>
-          </details>
-        )}
       </div>
     </main>
   );

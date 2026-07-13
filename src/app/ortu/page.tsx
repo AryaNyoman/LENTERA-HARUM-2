@@ -23,6 +23,21 @@ function tambahBulanIso(iso: string, n: number): Date {
   return d;
 }
 
+/** Tip harian dashboard ortu — berganti tiap hari (index = hari-ke-dalam-tahun % panjang). */
+const TIPS = [
+  "Minta kode QR ke kader untuk melihat progres imunisasi anakmu secara live!",
+  "Anda juga bisa menambahkan anak lain di menu Anakku!",
+  "Jangan lupa pantau selalu jadwal imunisasi Si Kecil ya!",
+  "Menu Kalkulator bisa langsung menghitung jadwal — tinggal masukkan tanggal lahir Si Kecil 🧮",
+  "Sudah diberikan di faskes lain? Catat sendiri lewat kartu imunisasi anak, kader akan memverifikasi 🟡",
+];
+
+function tipHariIni(): string {
+  const awalTahun = new Date(new Date().getFullYear(), 0, 0);
+  const hariKe = Math.floor((Date.now() - awalTahun.getTime()) / 86400000);
+  return TIPS[hariKe % TIPS.length];
+}
+
 /** Dashboard ORTU = statistik POSYANDU keseluruhan (posyandu tempat anak-anaknya),
  *  bukan cuma anak sendiri — sesuai keputusan pemilik. Angka = agregat tanpa nama. */
 export default async function DashboardOrtu() {
@@ -172,7 +187,7 @@ export default async function DashboardOrtu() {
             <div className="pop pop-2 grid grid-cols-3 gap-2">
               {[
                 { href: "/ortu/jadwal", e: "📅", l: "Jadwal" },
-                { href: "/ortu/tumbuh", e: "📏", l: "Tumbuh" },
+                { href: "/ortu/kalkulator", e: "🧮", l: "Kalkulator" },
                 { href: "/ortu/panduan", e: "📖", l: "Panduan" },
               ].map((p) => (
                 <Link
@@ -186,7 +201,12 @@ export default async function DashboardOrtu() {
               ))}
             </div>
 
-            <p className="pop pop-3 rounded-2xl bg-[var(--teal-muda)] px-3.5 py-2.5 text-[10.5px] font-semibold leading-relaxed text-[var(--teal-tua)]">
+            <div className="pop pop-3 rounded-2xl border-2 px-3.5 py-2.5" style={{ borderColor: "var(--kuning-pastel)", background: "var(--kartu)" }}>
+              <p className="font-judul mb-0.5 text-[10.5px] font-bold" style={{ color: "var(--kuning-teks)" }}>💡 Tips</p>
+              <p className="text-[10.5px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">{tipHariIni()}</p>
+            </div>
+
+            <p className="pop pop-4 rounded-2xl bg-[var(--teal-muda)] px-3.5 py-2.5 text-[10.5px] font-semibold leading-relaxed text-[var(--teal-tua)]">
               {cache
                 ? `Data SIMPUS terakhir ditarik ${cache.sinkronPada.toLocaleString("id-ID")} 💚`
                 : "Cakupan resmi puskesmas tampil setelah data SIMPUS ditarik petugas 💚"}

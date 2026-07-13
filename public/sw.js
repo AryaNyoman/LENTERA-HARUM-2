@@ -2,7 +2,7 @@
 // Halaman & data TERAKHIR yang pernah dibuka tetap terbaca tanpa sinyal;
 // input baru (POST/server action) tetap butuh koneksi.
 // Naikkan versi ini setiap rilis supaya HP pengguna dapat versi baru.
-const CACHE_NAME = "simpus-posyandu-v3";
+const CACHE_NAME = "simpus-posyandu-v4";
 
 // Aset dasar yang di-cache saat install.
 const ASSETS = [

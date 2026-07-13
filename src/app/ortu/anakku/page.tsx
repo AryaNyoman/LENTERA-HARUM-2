@@ -3,6 +3,7 @@ import Link from "next/link";
 import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
 import { anakKlaim } from "@/lib/ortu";
+import { hapusAnakOrtu } from "@/lib/anak-actions";
 import { hitungUsiaBulan, labelUsia } from "@/lib/anak";
 import { DOSIS_REGISTRY, UMUR_IDEAL, adaDosis, dosisTakBerlaku } from "@/lib/vaksin";
 
@@ -110,75 +111,105 @@ export default async function Anakku() {
               .sort((x, y) => x.jt.getTime() - y.jt.getTime());
             const next = belum[0];
             const seKunjungan = next ? belum.filter((b) => b.um === next.um).length - 1 : 0;
+            const bisaKelola = a.sumber === "BARU" && a.olehOrtu && a.status === "DRAF";
 
             return (
-              <Link
-                key={a.ref}
-                href={`/ortu/anak/${a.ref}`}
-                className="pop block overflow-hidden rounded-3xl border-2 border-[var(--coral-pastel)] bg-[var(--kartu)] transition-transform active:scale-[.97]"
-              >
-                <div className="relative flex items-center gap-3.5 p-4" style={{ background: "linear-gradient(135deg,#fdf0e9,#fbe9dd)" }}>
-                  <span
-                    className="font-judul absolute right-3.5 top-3 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
-                    style={{
-                      background: "var(--verif)", color: "var(--verif-pekat)",
-                      transform: "rotate(3deg)", boxShadow: "0 3px 8px rgba(242,183,5,.35)",
-                    }}
-                  >
-                    {menunggu ? "menunggu verifikasi kader" : labelUsia(usia)}
-                  </span>
-                  <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full border-[3px] border-[var(--coral)] bg-white">
-                    <img src={a.isi.jk === "P" ? "/gambar/anak-perempuan.png" : "/gambar/anak-laki.png"} alt="" width={52} height={52} className="h-[52px] w-[52px] object-contain" />
-                  </div>
-                  <div className="min-w-0 flex-1 pt-1.5">
-                    <p className="font-judul text-[19px] font-bold leading-tight">{a.isi.nama}</p>
-                    <p className="mt-0.5 text-[11.5px] font-semibold text-[#8a6a5c]">{a.posyanduLabel}</p>
-                  </div>
-                </div>
-                <div className="px-4 pb-4 pt-3.5">
-                  <p className="mb-2 text-xs font-extrabold text-[var(--teks-3)]">
-                    Perjalanan imunisasi — <span style={{ color: "#d95f38" }}>{sudah} dari {relevan.length} dosis</span> 💪
-                  </p>
-                  <div className="flex flex-wrap gap-[5px]">
-                    {relevan.map((d, i) => {
-                      const sudahD = adaDosis(a.isi.vaksin, d.kode);
-                      const jt = tambahBulanIso(a.isi.tglLahir, UMUR_IDEAL[d.kode] ?? 0);
-                      const tertunda = !sudahD && jt.getTime() < now.getTime();
-                      return (
-                        <span
-                          key={d.kode}
-                          title={d.nama}
-                          className="inline-block h-4 w-4 rounded-full"
-                          style={
-                            sudahD
-                              ? { background: "var(--hijau)", animation: `popIn .4s ${0.1 + i * 0.05}s both` }
-                              : tertunda
-                                ? { background: "var(--merah-muda)", border: "1.5px dashed #e39a90", boxSizing: "border-box" }
-                                : { background: "#f4efe6" }
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-                  <p className="mt-2 text-[10px] font-semibold text-[var(--abu)]">
-                    🟢 sudah · 🔴 putus-putus = tertunda · abu = belum waktunya
-                  </p>
-                  {next && (
-                    <div className="mt-2.5 flex items-center gap-2 rounded-[14px] border-[1.5px] px-3 py-2" style={{ background: "var(--kuning-muda)", borderColor: "var(--kuning-border)" }}>
-                      <span className="shrink-0 text-[15px]">🎯</span>
-                      <p className="text-[11px] font-semibold leading-snug" style={{ color: "var(--kuning-teks)" }}>
-                        <b>Berikutnya:</b> {next.d.nama}
-                        {seKunjungan > 0 && <> + {seKunjungan} dosis lain</>} — datang ke posyandu ya!
-                      </p>
+              <div key={a.ref} className="pop overflow-hidden rounded-3xl border-2 border-[var(--coral-pastel)] bg-[var(--kartu)]">
+                <Link href={`/ortu/anak/${a.ref}`} className="block transition-transform active:scale-[.98]">
+                  <div className="relative flex items-center gap-3.5 p-4" style={{ background: "linear-gradient(135deg,#fdf0e9,#fbe9dd)" }}>
+                    <span
+                      className="font-judul absolute right-3.5 top-3 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+                      style={{
+                        background: "var(--verif)", color: "var(--verif-pekat)",
+                        transform: "rotate(3deg)", boxShadow: "0 3px 8px rgba(242,183,5,.35)",
+                      }}
+                    >
+                      {menunggu ? "menunggu verifikasi kader" : labelUsia(usia)}
+                    </span>
+                    <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full border-[3px] border-[var(--coral)] bg-white">
+                      <img src={a.isi.jk === "P" ? "/gambar/anak-perempuan.png" : "/gambar/anak-laki.png"} alt="" width={52} height={52} className="h-[52px] w-[52px] object-contain" />
                     </div>
-                  )}
-                  {menunggu && (
-                    <p className="mt-2 text-[10.5px] font-semibold leading-snug text-[var(--abu)]">
-                      Data isian Bunda/Ayah sudah tersimpan — kader akan mencocokkannya dengan buku KIA 🟡
+                    <div className="min-w-0 flex-1 pt-1.5">
+                      <p className="font-judul text-[19px] font-bold leading-tight">{a.isi.nama}</p>
+                      <p className="mt-0.5 text-[11.5px] font-semibold text-[#8a6a5c]">{a.posyanduLabel}</p>
+                    </div>
+                  </div>
+                  <div className="px-4 pb-4 pt-3.5">
+                    <p className="mb-2 text-xs font-extrabold text-[var(--teks-3)]">
+                      Perjalanan imunisasi — <span style={{ color: "#d95f38" }}>{sudah} dari {relevan.length} dosis</span> 💪
                     </p>
-                  )}
-                </div>
-              </Link>
+                    <div className="flex flex-wrap gap-[5px]">
+                      {relevan.map((d, i) => {
+                        const sudahD = adaDosis(a.isi.vaksin, d.kode);
+                        const jt = tambahBulanIso(a.isi.tglLahir, UMUR_IDEAL[d.kode] ?? 0);
+                        const tertunda = !sudahD && jt.getTime() < now.getTime();
+                        return (
+                          <span
+                            key={d.kode}
+                            title={d.nama}
+                            className="inline-block h-4 w-4 rounded-full"
+                            style={
+                              sudahD
+                                ? { background: "var(--hijau)", animation: `popIn .4s ${0.1 + i * 0.05}s both` }
+                                : tertunda
+                                  ? { background: "var(--merah-muda)", border: "1.5px dashed #e39a90", boxSizing: "border-box" }
+                                  : { background: "#f4efe6" }
+                            }
+                          />
+                        );
+                      })}
+                    </div>
+                    <p className="mt-2 text-[10px] font-semibold text-[var(--abu)]">
+                      🟢 sudah · 🔴 putus-putus = tertunda · abu = belum waktunya
+                    </p>
+                    {next && (
+                      <div className="mt-2.5 flex items-center gap-2 rounded-[14px] border-[1.5px] px-3 py-2" style={{ background: "var(--kuning-muda)", borderColor: "var(--kuning-border)" }}>
+                        <span className="shrink-0 text-[15px]">🎯</span>
+                        <p className="text-[11px] font-semibold leading-snug" style={{ color: "var(--kuning-teks)" }}>
+                          <b>Berikutnya:</b> {next.d.nama}
+                          {seKunjungan > 0 && <> + {seKunjungan} dosis lain</>} — datang ke posyandu ya!
+                        </p>
+                      </div>
+                    )}
+                    {menunggu && (
+                      <p className="mt-2 text-[10.5px] font-semibold leading-snug text-[var(--abu)]">
+                        Data isian Bunda/Ayah sudah tersimpan — kader akan mencocokkannya dengan buku KIA 🟡
+                      </p>
+                    )}
+                  </div>
+                </Link>
+                {bisaKelola && (
+                  <div className="flex items-stretch gap-2 border-t-2 border-[var(--coral-pastel)] px-4 py-2.5">
+                    <Link
+                      href={`/ortu/anak-baru?ref=b:${a.id}`}
+                      className="btn-garis font-judul flex h-9 flex-1 items-center justify-center border-2 border-[var(--garis-kader)] text-[11.5px] text-[var(--teks-3)]"
+                      style={{ borderRadius: "12px" }}
+                    >
+                      ✎ Edit
+                    </Link>
+                    <details className="group flex-1">
+                      <summary
+                        className="btn-garis font-judul flex h-9 cursor-pointer list-none items-center justify-center border-2 border-[var(--merah)] text-[11.5px] text-[var(--merah)] [&::-webkit-details-marker]:hidden"
+                        style={{ borderRadius: "12px" }}
+                      >
+                        <span className="group-open:hidden">🗑 Hapus</span>
+                        <span className="hidden group-open:inline">tutup ▴</span>
+                      </summary>
+                      <div className="mt-2 rounded-xl bg-[var(--merah-muda)] p-2.5">
+                        <p className="text-[10px] font-semibold leading-snug text-[var(--merah-teks)]">
+                          Hapus <b>{a.isi.nama}</b> permanen? Tak bisa dibatalkan.
+                        </p>
+                        <form action={hapusAnakOrtu} className="mt-1.5">
+                          <input type="hidden" name="id" value={a.id} />
+                          <button className="h-8 w-full rounded-lg bg-[var(--merah)] text-[10.5px] font-bold text-white">
+                            Ya, hapus permanen
+                          </button>
+                        </form>
+                      </div>
+                    </details>
+                  </div>
+                )}
+              </div>
             );
           })}
 
