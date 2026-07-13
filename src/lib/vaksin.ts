@@ -74,7 +74,7 @@ export interface AturanDosis {
 export const ATURAN_DOSIS: Record<string, AturanDosis> = {
   HB0_1_7H: { minHari: 0, maxHari: 7 },
   BCG: { minHari: 8 },
-  POLIO1: { minHari: 28 },
+  POLIO1: { minHari: 8 },
   POLIO2: { minHari: 56, setelahSlot: "POLIO1", intervalHari: 28 },
   POLIO3: { minHari: 84, setelahSlot: "POLIO2", intervalHari: 28 },
   POLIO4: { minHari: 112, setelahSlot: "POLIO3", intervalHari: 28 },
@@ -92,6 +92,14 @@ export const ATURAN_DOSIS: Record<string, AturanDosis> = {
   MR: { minHari: 252 },
   DPT_BADUTA: { minHari: 504, setelahSlot: "PENTA3", intervalHari: 336 },
   MR_BADUTA: { minHari: 504, setelahSlot: "MR", intervalHari: 168 },
+};
+
+/** Slot yang diberikan dalam SATU kunjungan (same-day) — BCG (suntik) & bOPV1 (tetes)
+ *  diberikan sekaligus di praktik, bukan dua vaksin lepas dengan jendela usia independen.
+ *  Kunci & nilai = kode SLOT (bukan varian merek); resolve varian via SLOT_VARIAN. */
+export const PASANGAN_SEHARI: Record<string, string> = {
+  BCG: "POLIO1",
+  POLIO1: "BCG",
 };
 
 /** Tambah/kurang hari dari tanggal (YYYY-MM-DD) secara UTC-safe — hindari geser
@@ -161,6 +169,13 @@ export function slotSyaratSebelum(kode: string): string | undefined {
   return a.setelahSlot;
 }
 
+/** Slot pasangan "satu kunjungan" milik `kode` (BCG↔POLIO1), bila ada — lihat PASANGAN_SEHARI.
+ *  Menerima kode slot maupun kode varian merek. */
+export function pasanganSehari(kode: string): string | undefined {
+  const slot = SLOT_VARIAN[kode] ?? kode;
+  return PASANGAN_SEHARI[slot];
+}
+
 /** Jendela usia (min–max, hari sejak lahir) satu slot dosis untuk anak `tglLahir`,
  *  dgn `vaksin` (dosis lain yang sudah terisi) untuk menghitung interval seri.
  *  `alasan` = teks ramah utk pesan galat. Menerima kode slot maupun kode varian merek. */
@@ -201,10 +216,13 @@ export function batasDosis(
 }
 
 /** Validasi semua dosis terisi: urutan seri ("isi dulu dosis sebelumnya") + jendela
- *  min/max + interval antar dosis. Mengembalikan pesan galat ramah, atau null bila sah.
+ *  min/max + interval antar dosis + pasangan sehari (PASANGAN_SEHARI, cth BCG↔bOPV1
+ *  harus tanggal sama). Mengembalikan pesan galat ramah, atau null bila sah.
  *  `vaksinLama` = dosis tersimpan sebelumnya (mode edit): nilai yang TIDAK berubah
  *  dilewati ("grandfather") supaya data lama yang sah menurut aturan lama tidak
- *  menggagalkan edit field lain; nilai yang berubah/baru tetap divalidasi penuh. */
+ *  menggagalkan edit field lain; nilai yang berubah/baru tetap divalidasi penuh —
+ *  termasuk cek pasangan: kode grandfathered tak memicu ceknya, tapi tetap dicek
+ *  sebagai acuan tanggal bila pasangannya yang berubah. */
 export function validasiDosis(
   vaksin: Record<string, string>,
   tglLahir: string,
@@ -220,6 +238,20 @@ export function validasiDosis(
     const batas = batasDosis(vaksin, kode, tglLahir);
     if (tgl < batas.min || (batas.max && tgl > batas.max)) {
       return batas.alasan ?? `Tanggal ${namaKode(kode)} di luar batas usia yang diperbolehkan.`;
+    }
+    const pasangan = pasanganSehari(kode);
+    if (pasangan) {
+      const tglPasangan = tglDosis(vaksin, pasangan);
+      if (tglPasangan && tglPasangan !== tgl) {
+        const slotKode = SLOT_VARIAN[kode] ?? kode;
+        const slotPasangan = SLOT_VARIAN[pasangan] ?? pasangan;
+        const kodeDulu = DOSIS_REGISTRY.findIndex((d) => d.kode === slotKode)
+          < DOSIS_REGISTRY.findIndex((d) => d.kode === slotPasangan);
+        const [nama1, nama2] = kodeDulu
+          ? [namaKode(kode), namaKode(pasangan)]
+          : [namaKode(pasangan), namaKode(kode)];
+        return `${nama1} dan ${nama2} diberikan di kunjungan yang sama — isi tanggal yang sama untuk keduanya.`;
+      }
     }
   }
   return null;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { batasDosis, slotSyaratSebelum, tglDosis, namaKode, validasiDosis } from "@/lib/vaksin";
+import { batasDosis, slotSyaratSebelum, tglDosis, namaKode, validasiDosis, pasanganSehari } from "@/lib/vaksin";
 
 const LAHIR = "2026-01-01";
 
@@ -51,6 +51,12 @@ describe("batasDosis — interval antar dosis dalam seri", () => {
     expect(kurang < b.min).toBe(true); // < MR+168 → ditolak
     expect(cukup < b.min).toBe(false); // = MR+168 → lolos
   });
+
+  it("POLIO2: baseline 56 hari tetap jadi lantai walau POLIO1 diisi sangat dini (hari-10)", () => {
+    const vaksin = { POLIO1: "2026-01-11" }; // hari ke-10 — sah sejak POLIO1 minHari turun ke 8
+    const b = batasDosis(vaksin, "POLIO2", LAHIR);
+    expect(b.min).toBe("2026-02-26"); // lahir + 56 hari (interval dari POLIO1 cuma +38, kalah vs baseline)
+  });
 });
 
 describe("batasDosis — aturan interval lunak (PCV3)", () => {
@@ -89,5 +95,51 @@ describe("validasiDosis — validasi menyeluruh + grandfather nilai lama", () =>
     expect(validasiDosis(kiriman, LAHIR, lama)).toContain("BCG");
     const sah = { HB0_1_7H: HB0_H10, BCG: "2026-01-09" }; // BCG hari-8 → lolos
     expect(validasiDosis(sah, LAHIR, lama)).toBeNull();
+  });
+});
+
+describe("pasanganSehari & batasDosis — BCG & bOPV1 satu kunjungan (bukan 2 vaksin lepas)", () => {
+  it("POLIO1 memakai jendela dasar sama dengan BCG (min 8 hari, bukan 28 — tanpa jarak)", () => {
+    const bcg = batasDosis({}, "BCG", LAHIR);
+    const polio1 = batasDosis({}, "POLIO1", LAHIR);
+    expect(polio1.min).toBe(bcg.min);
+    expect(polio1.min).toBe("2026-01-09"); // lahir + 8 hari
+  });
+
+  it("pasanganSehari memetakan BCG<->POLIO1; kode lain tak berpasangan", () => {
+    expect(pasanganSehari("BCG")).toBe("POLIO1");
+    expect(pasanganSehari("POLIO1")).toBe("BCG");
+    expect(pasanganSehari("PENTA1")).toBeUndefined();
+  });
+});
+
+describe("validasiDosis — BCG & bOPV1 harus satu kunjungan (tanggal sama)", () => {
+  it("BCG & POLIO1 beda tanggal → galat pasangan", () => {
+    const galat = validasiDosis({ BCG: "2026-01-09", POLIO1: "2026-01-20" }, LAHIR);
+    expect(galat).toContain("BCG");
+    expect(galat).toContain("bOPV 1");
+  });
+
+  it("BCG & POLIO1 tanggal sama → sah", () => {
+    expect(validasiDosis({ BCG: "2026-01-09", POLIO1: "2026-01-09" }, LAHIR)).toBeNull();
+  });
+
+  it("grandfather utuh: data lama sudah kadung beda tanggal, resubmit persis sama → tak diblokir", () => {
+    const lama = { BCG: "2026-01-09", POLIO1: "2026-01-20" };
+    expect(validasiDosis({ ...lama }, LAHIR, lama)).toBeNull();
+  });
+
+  it("grandfather sebagian: POLIO1 diubah jadi cocok dengan BCG → sah", () => {
+    const lama = { BCG: "2026-01-09", POLIO1: "2026-01-20" };
+    const kiriman = { BCG: "2026-01-09", POLIO1: "2026-01-09" };
+    expect(validasiDosis(kiriman, LAHIR, lama)).toBeNull();
+  });
+
+  it("grandfather sebagian: BCG diubah, POLIO1 tetap grandfathered beda tanggal → galat pasangan", () => {
+    const lama = { BCG: "2026-01-09", POLIO1: "2026-01-20" };
+    const kiriman = { BCG: "2026-01-15", POLIO1: "2026-01-20" };
+    const galat = validasiDosis(kiriman, LAHIR, lama);
+    expect(galat).toContain("BCG");
+    expect(galat).toContain("bOPV 1");
   });
 });
