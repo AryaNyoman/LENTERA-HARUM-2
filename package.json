@@ -9,6 +9,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "build:railway": "node scripts/swap-provider.mjs postgresql && prisma generate && next build",
+    "vercel-build": "node scripts/swap-provider.mjs postgresql && prisma generate && next build",
     "start": "next start",
     "start:railway": "node scripts/swap-provider.mjs postgresql && prisma db push --skip-generate && next start -p ${PORT:-3000}",
     "lint": "eslint",
