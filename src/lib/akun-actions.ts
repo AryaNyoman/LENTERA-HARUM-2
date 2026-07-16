@@ -139,14 +139,72 @@ export async function buatKader(
   return { ok: `Akun kader "${username}" dibuat.`, sandi };
 }
 
+export async function buatOrtu(
+  _prev: HasilBuatKader,
+  formData: FormData,
+): Promise<HasilBuatKader> {
+  await wajibUser("ADMIN");
+  const nama = String(formData.get("nama") ?? "").trim();
+  const noHp = normHp(String(formData.get("noHp") ?? ""));
+  const kelurahanId = Number(formData.get("kelurahanId") ?? 0) || 0;
+
+  if (nama.length < 3) return { galat: "Nama minimal 3 huruf." };
+  if (!/^08\d{8,11}$/.test(noHp)) return { galat: "No HP tidak valid (mulai 08, 10-13 digit)." };
+  if (!kelurahanId || !(await db.kelurahan.findUnique({ where: { id: kelurahanId } }))) {
+    return { galat: "Pilih kelurahan tempat tinggal." };
+  }
+  if (await db.user.findUnique({ where: { username: noHp } })) {
+    return { galat: "No HP sudah terdaftar." };
+  }
+
+  const sandi = randomBytes(6).toString("base64url");
+  const user = await db.user.create({
+    data: {
+      peran: "ORTU",
+      nama,
+      username: noHp,
+      noHp,
+      kelurahanId,
+      sandiHash: await bcrypt.hash(sandi, 10),
+      perluGantiSandi: true,
+    },
+  });
+  await catat(user.id, "AKUN_ORTU_DIBUAT_ADMIN", `oleh admin; kelurahan ${kelurahanId}`);
+  return { ok: `Akun ortu "${noHp}" dibuat.`, sandi };
+}
+
 export async function setAktif(formData: FormData): Promise<void> {
   const admin = await wajibUser("ADMIN");
-  const id = Number(formData.get("id"));
+  const id = Number(formData.get("id")) || 0;
   const aktif = String(formData.get("aktif")) === "1";
+  if (!Number.isInteger(id) || id <= 0) redirect("/admin?galat=Akun+tidak+ditemukan");
   if (id === admin.id) redirect("/admin?galat=Tidak+bisa+menonaktifkan+akun+sendiri");
   await db.user.update({ where: { id }, data: { aktif } });
   if (!aktif) await db.sesi.deleteMany({ where: { userId: id } });
   await catat(admin.id, aktif ? "AKUN_DIAKTIFKAN" : "AKUN_DINONAKTIFKAN", `user ${id}`);
+  redirect("/admin");
+}
+
+/** Hapus akun kader/ortu (bukan admin). Relasi Sesi/UserPosyandu/KlaimAnak ikut terhapus
+ *  (onDelete: Cascade di schema). Khusus ortu: bersihkan dulu anak sampah murni miliknya
+ *  (draf isian sendiri, belum diverifikasi/diekspor/tercocok) — yang sudah diverifikasi
+ *  atau sudah tercocok ke SIMPUS TIDAK disentuh. */
+export async function hapusAkun(formData: FormData): Promise<void> {
+  const admin = await wajibUser("ADMIN");
+  const id = Number(formData.get("id")) || 0;
+  if (!Number.isInteger(id) || id <= 0) redirect("/admin?galat=Akun+tidak+ditemukan");
+  if (id === admin.id) redirect("/admin?galat=Tidak+bisa+menghapus+akun+sendiri");
+  const target = await db.user.findUnique({ where: { id } });
+  if (!target) redirect("/admin");
+  if (target.peran === "ADMIN") redirect("/admin?galat=Akun+admin+tidak+bisa+dihapus+dari+sini");
+
+  if (target.peran === "ORTU") {
+    await db.anakBaru.deleteMany({
+      where: { dibuatOlehId: id, olehOrtu: true, status: "DRAF", terverifikasi: false, anakSimpusId: null },
+    });
+  }
+  await db.user.delete({ where: { id } });
+  await catat(admin.id, "AKUN_DIHAPUS", `${target.username} (${target.peran})`);
   redirect("/admin");
 }
 
@@ -155,7 +213,8 @@ export async function resetSandi(
   formData: FormData,
 ): Promise<HasilBuatKader> {
   const admin = await wajibUser("ADMIN");
-  const id = Number(formData.get("id"));
+  const id = Number(formData.get("id")) || 0;
+  if (!Number.isInteger(id) || id <= 0) return { galat: "Akun tidak ditemukan." };
   const target = await db.user.findUnique({ where: { id } });
   if (!target) return { galat: "Akun tidak ditemukan." };
   const sandi = randomBytes(6).toString("base64url");

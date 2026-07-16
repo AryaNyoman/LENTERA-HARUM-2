@@ -60,15 +60,24 @@ export default async function DaftarPage({
           )}
           <label className={lbl}>
             Nama lengkap (Bunda/Ayah)
-            <input name="nama" className={inp} placeholder="mis. Ni Made Sari" />
+            <input name="nama" required className={inp} placeholder="mis. Ni Made Sari" />
           </label>
           <label className={`${lbl} mt-3`}>
             No HP <span className="font-semibold text-[var(--abu)]">(dipakai untuk login)</span>
-            <input name="noHp" inputMode="numeric" maxLength={13} className={inp} placeholder="08…" />
+            <input
+              name="noHp"
+              inputMode="numeric"
+              maxLength={13}
+              required
+              pattern="08[0-9]{8,11}"
+              title="Mulai 08, 10–13 digit angka"
+              className={inp}
+              placeholder="08…"
+            />
           </label>
           <label className={`${lbl} mt-3`}>
             Kelurahan tempat tinggal
-            <select name="kelurahanId" defaultValue="" className={inp}>
+            <select name="kelurahanId" defaultValue="" required className={inp}>
               <option value="">— pilih kelurahan —</option>
               {kelurahan.map((k) => (
                 <option key={k.id} value={k.id}>{k.nama}</option>
@@ -77,11 +86,11 @@ export default async function DaftarPage({
           </label>
           <label className={`${lbl} mt-3`}>
             Sandi <span className="font-semibold text-[var(--abu)]">(min. 6 karakter)</span>
-            <InputSandi name="sandi" autoComplete="new-password" className={inp.replace("mt-1.5 ", "")} />
+            <InputSandi name="sandi" required minLength={6} autoComplete="new-password" className={inp.replace("mt-1.5 ", "")} />
           </label>
           <label className={`${lbl} mt-3`}>
             Ulangi sandi
-            <InputSandi name="ulang" autoComplete="new-password" className={inp.replace("mt-1.5 ", "")} />
+            <InputSandi name="ulang" required minLength={6} autoComplete="new-password" className={inp.replace("mt-1.5 ", "")} />
           </label>
           <button
             type="submit"

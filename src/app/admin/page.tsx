@@ -1,9 +1,10 @@
 import Kepala from "@/components/kepala";
 import { wajibUser } from "@/lib/sesi";
 import { db } from "@/lib/db";
-import { setAktif } from "@/lib/akun-actions";
+import { setAktif, hapusAkun } from "@/lib/akun-actions";
 import { tarikSimpus } from "@/lib/sinkron-actions";
 import FormKader, { TombolReset } from "./form-kader";
+import FormOrtu from "./form-ortu";
 import { TombolTarik } from "./tombol-tarik";
 
 function JudulSeksi({ judul, n, coral }: { judul: string; n: number; coral?: boolean }) {
@@ -39,6 +40,31 @@ function TombolAktif({ id, aktif }: { id: number; aktif: boolean }) {
   );
 }
 
+/** Tombol hapus akun (kader/ortu) — konfirmasi inline `<details>`, ringkas saat tertutup
+ *  (pola sama dengan "🗑 Hapus" di src/app/ortu/anakku/page.tsx). Named group (group/hapus)
+ *  supaya label tidak ketularan state open `<details>` grup kelurahan pembungkusnya. */
+function TombolHapus({ id, nama }: { id: number; nama: string }) {
+  return (
+    <details className="group/hapus mt-1.5">
+      <summary className="cursor-pointer list-none text-[10.5px] font-bold text-[var(--merah)] [&::-webkit-details-marker]:hidden">
+        <span className="group-open/hapus:hidden">🗑 Hapus akun</span>
+        <span className="hidden group-open/hapus:inline">▴ Batal</span>
+      </summary>
+      <div className="mt-1.5 rounded-xl bg-[var(--merah-muda)] p-2.5">
+        <p className="text-[10px] font-semibold leading-snug text-[var(--merah-teks)]">
+          Hapus akun <b>{nama}</b> permanen? Tak bisa dibatalkan.
+        </p>
+        <form action={hapusAkun} className="mt-1.5">
+          <input type="hidden" name="id" value={id} />
+          <button className="h-8 w-full rounded-lg bg-[var(--merah)] text-[10.5px] font-bold text-white">
+            Ya, hapus permanen
+          </button>
+        </form>
+      </div>
+    </details>
+  );
+}
+
 export default async function AdminPage({
   searchParams,
 }: {
@@ -62,6 +88,12 @@ export default async function AdminPage({
   const kader = users.filter((u) => u.peran === "KADER");
   const ortu = users.filter((u) => u.peran === "ORTU");
   const admin = users.filter((u) => u.peran === "ADMIN");
+
+  // grup ortu per kelurahan (urutan ikut kelurahan.urutan), tanpa-kelurahan di grup terakhir
+  const grupOrtu = [
+    ...kelurahan.map((k) => ({ key: `k${k.id}`, label: k.nama, daftar: ortu.filter((u) => u.kelurahanId === k.id) })),
+    { key: "tanpa", label: "Belum pilih kelurahan", daftar: ortu.filter((u) => u.kelurahanId == null) },
+  ].filter((g) => g.daftar.length > 0);
 
   return (
     <main className="bg-titik-kader min-h-dvh pb-8">
@@ -112,11 +144,29 @@ export default async function AdminPage({
           )}
         </section>
 
-        <FormKader kelurahan={kelurahan.map((k) => ({
-          id: k.id,
-          nama: k.nama,
-          posyandu: k.posyandu.map((p) => ({ id: p.id, label: `${p.nama} (${p.namaPosyandu})` })),
-        }))} />
+        <details className="group mt-3">
+          <summary className="pop flex cursor-pointer list-none items-center justify-between rounded-[18px] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-4 py-3 text-[14px] font-bold text-[var(--teal-gelap)] [&::-webkit-details-marker]:hidden">
+            <span>➕ Buat akun kader</span>
+            <span className="text-[11px] font-semibold text-[var(--abu)] group-open:hidden">▾ buka</span>
+            <span className="hidden text-[11px] font-semibold text-[var(--abu)] group-open:inline">▴ tutup</span>
+          </summary>
+          <FormKader kelurahan={kelurahan.map((k) => ({
+            id: k.id,
+            nama: k.nama,
+            posyandu: k.posyandu.map((p) => ({ id: p.id, label: `${p.nama} (${p.namaPosyandu})` })),
+          }))} />
+        </details>
+
+        <details className="group mt-3">
+          <summary className="pop flex cursor-pointer list-none items-center justify-between rounded-[18px] border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] px-4 py-3 text-[14px] font-bold text-[var(--coral-gelap)] [&::-webkit-details-marker]:hidden">
+            <span>➕ Buat akun ortu</span>
+            <span className="text-[11px] font-semibold text-[var(--abu)] group-open:hidden">▾ buka</span>
+            <span className="hidden text-[11px] font-semibold text-[var(--abu)] group-open:inline">▴ tutup</span>
+          </summary>
+          <div className="mt-2 rounded-[18px] border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] p-4">
+            <FormOrtu kelurahan={kelurahan.map((k) => ({ id: k.id, nama: k.nama }))} />
+          </div>
+        </details>
 
         <JudulSeksi judul="Kader" n={kader.length} />
         <div className="mt-2 space-y-3">
@@ -150,6 +200,7 @@ export default async function AdminPage({
                 <TombolReset id={u.id} />
                 <TombolAktif id={u.id} aktif={u.aktif} />
               </div>
+              <TombolHapus id={u.id} nama={u.nama} />
             </div>
           ))}
         </div>
@@ -161,20 +212,42 @@ export default async function AdminPage({
               Belum ada — orang tua mendaftar sendiri lewat halaman Daftar.
             </p>
           )}
-          {ortu.map((u) => (
-            <div key={u.id} className="flex items-center gap-2.5 rounded-[20px] border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] px-3.5 py-3">
-              <p className="min-w-0 flex-1 truncate text-[13.5px] font-bold">
-                {u.nama} <span className="text-[11px] font-semibold text-[var(--abu)]">· {u.username}</span>
-                {!u.aktif && (
-                  <span className="ml-1.5 rounded bg-[var(--merah-muda)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--merah-teks)]">
-                    NONAKTIF
+          {grupOrtu.map((g) => (
+            <details key={g.key} className="group rounded-[18px] border-2 border-[var(--garis-ortu)] bg-[var(--kartu)] px-3.5 py-2.5">
+              <summary className="flex cursor-pointer list-none items-center justify-between text-[12.5px] font-bold text-[var(--teks-3)] [&::-webkit-details-marker]:hidden">
+                <span className="truncate">{g.label}</span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <span
+                    className="font-judul rounded-full px-2 py-0.5 text-[11px] font-bold"
+                    style={{ background: "var(--coral-muda)", color: "var(--coral-gelap)" }}
+                  >
+                    {g.daftar.length}
                   </span>
-                )}
-              </p>
-              <div className="shrink-0">
-                <TombolAktif id={u.id} aktif={u.aktif} />
+                  <span className="text-[10px] font-semibold text-[var(--abu)] group-open:hidden">▾</span>
+                  <span className="hidden text-[10px] font-semibold text-[var(--abu)] group-open:inline">▴</span>
+                </span>
+              </summary>
+              <div className="mt-2.5 space-y-2">
+                {g.daftar.map((u) => (
+                  <div key={u.id} className="rounded-[16px] border-2 border-[var(--garis-ortu)] bg-white px-3 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <p className="min-w-0 flex-1 truncate text-[13px] font-bold">
+                        {u.nama} <span className="text-[11px] font-semibold text-[var(--abu)]">· {u.username}</span>
+                        {!u.aktif && (
+                          <span className="ml-1.5 rounded bg-[var(--merah-muda)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--merah-teks)]">
+                            NONAKTIF
+                          </span>
+                        )}
+                      </p>
+                      <div className="shrink-0">
+                        <TombolAktif id={u.id} aktif={u.aktif} />
+                      </div>
+                    </div>
+                    <TombolHapus id={u.id} nama={u.nama} />
+                  </div>
+                ))}
               </div>
-            </div>
+            </details>
           ))}
         </div>
 
