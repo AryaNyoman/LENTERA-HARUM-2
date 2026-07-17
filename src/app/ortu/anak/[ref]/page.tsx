@@ -10,6 +10,7 @@ import {
 } from "@/lib/vaksin";
 import TumbuhBagian from "@/components/tumbuh-bagian";
 import InputTanggal from "@/components/input-tanggal";
+import FormAutoSimpan from "@/components/form-auto-simpan";
 import { daftarCentang, tandaiOrtu, hapusCentangOrtu } from "@/lib/centang-actions";
 
 function isiSlot(vaksin: Record<string, string>, kode: string): { tgl: string; merek?: string } | null {
@@ -266,7 +267,7 @@ export default async function DetailAnakOrtu({
                           </span>
                         </summary>
                         <div className="mt-1.5 rounded-2xl border-[1.5px] border-[var(--coral-border)] px-3 py-2.5" style={{ background: "#fdf4f0" }}>
-                          <form action={tandaiOrtu}>
+                          <FormAutoSimpan action={tandaiOrtu}>
                             <input type="hidden" name="ref" value={anak.ref} />
                             <input type="hidden" name="kode" value={d.kode} />
                             <div className="mt-1.5 grid grid-cols-2 gap-2">
@@ -282,7 +283,7 @@ export default async function DetailAnakOrtu({
                             <button className="btn3d btn3d-coral mt-2 h-[42px] w-full rounded-[13px] text-[13px]" style={{ boxShadow: "0 4px 0 var(--coral-tua)" }}>
                               Simpan perubahan
                             </button>
-                          </form>
+                          </FormAutoSimpan>
                           <form action={hapusCentangOrtu} className="mt-1.5">
                             <input type="hidden" name="id" value={c.id} />
                             <button className="btn-garis h-9 w-full rounded-xl border-2 border-[var(--merah)] text-[11px] text-[var(--merah)]">
@@ -314,7 +315,7 @@ export default async function DetailAnakOrtu({
                           <p className="text-[10.5px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
                             Sudah diberikan di faskes lain (RS/klinik)? Catat di sini:
                           </p>
-                          <form action={tandaiOrtu}>
+                          <FormAutoSimpan action={tandaiOrtu}>
                             <input type="hidden" name="ref" value={anak.ref} />
                             <input type="hidden" name="kode" value={d.kode} />
                             <div className="mt-1.5 grid grid-cols-2 gap-2">
@@ -330,7 +331,7 @@ export default async function DetailAnakOrtu({
                             <button className="btn3d btn3d-coral mt-2 h-[42px] w-full rounded-[13px] text-[13px]" style={{ boxShadow: "0 4px 0 var(--coral-tua)" }}>
                               Simpan catatan
                             </button>
-                          </form>
+                          </FormAutoSimpan>
                           <p className="mt-1.5 text-[10px] font-semibold leading-relaxed text-[var(--abu)]">
                             Catatan Anda berstatus{" "}
                             <span className="rounded px-1 py-0.5 font-extrabold" style={{ background: "var(--verif-muda)", color: "var(--verif-teks)" }}>🟡 menunggu</span>{" "}

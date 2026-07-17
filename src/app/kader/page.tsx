@@ -45,11 +45,12 @@ export default async function DashboardKader() {
   });
 
   const now = new Date();
-  let bayi = 0, baduta = 0, idl = 0, ibl = 0, siapSetor = 0, tungguVerif = 0;
+  let bayi = 0, baduta = 0, balita = 0, idl = 0, ibl = 0, siapSetor = 0, tungguVerif = 0;
   const perPosyandu = new Map<string, number>();
   for (const a of anak) {
+    // tglLahir kosong/invalid → hitungUsiaBulan pulang 0 → ikut kelompok bayi (tetap kehitung di total).
     const u = kelompokUsia(hitungUsiaBulan(a.isi.tglLahir, now));
-    if (u === "0-11") bayi++; else if (u === "12-24") baduta++;
+    if (u === "0-11") bayi++; else if (u === "12-24") baduta++; else balita++;
     if (lengkap(a.isi.vaksin, SYARAT_IDL)) idl++;
     if (lengkap(a.isi.vaksin, SYARAT_IBL)) ibl++;
     if (a.sumber === "BARU" && a.status === "DRAF") {
@@ -82,9 +83,17 @@ export default async function DashboardKader() {
 
       <div className="mx-auto max-w-md px-4 pt-2.5">
         <div className="grid grid-cols-2 gap-2.5">
-          <KartuStat nilai={anak.length} label="Total anak binaan" img="/gambar/bayi-duduk.png" border="var(--teal-pastel)" warna="var(--teal-gelap)" delay="pop-1" />
-          <KartuStat nilai={bayi} label="Bayi 0–11 bulan" img="/gambar/bayi-baru-lahir.png" border="var(--teal-pastel)" warna="var(--teal-gelap)" delay="pop-2" />
-          <KartuStat nilai={baduta} label="Baduta 12–24 bln" img="/gambar/baduta-jalan.png" border="var(--kuning-pastel)" warna="#a16207" delay="pop-3" />
+          <KartuStat
+            nilai={
+              <span className="flex flex-col gap-0.5">
+                <span className="whitespace-nowrap leading-none">{anak.length}</span>
+                <span className="block whitespace-normal text-[10px] font-bold leading-tight text-[var(--abu)]">
+                  {bayi} bayi · {baduta} baduta · {balita} balita
+                </span>
+              </span>
+            }
+            label="Total anak binaan" img="/gambar/bayi-duduk.png" border="var(--teal-pastel)" warna="var(--teal-gelap)" delay="pop-1"
+          />
           <KartuStat
             nilai={
               <span className="flex flex-col gap-1">

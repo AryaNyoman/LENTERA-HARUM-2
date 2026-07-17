@@ -26,7 +26,7 @@ export const HEADER_EXPORT: string[] = [
  *  Dosis varian merek (HEXA*, ROTARIX*) masuk ke KOLOM SLOT-nya (mis. HEXA1 → "DPT-HB-Hib (1)"). */
 export function bangunExcelAnak(baris: BarisExport[]): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "SIMPUS-POSYANDU";
+  wb.creator = "Lentera Harum Posyandu";
   const ws = wb.addWorksheet("Data Anak");
 
   const h = ws.addRow(HEADER_EXPORT);

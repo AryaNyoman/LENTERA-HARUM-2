@@ -19,7 +19,7 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "SIMPUS-POSYANDU — Puskesmas Cakranegara",
+  title: "Lentera Harum Posyandu — Puskesmas Cakranegara",
   description:
     "Portal terpadu kader posyandu & orang tua — imunisasi dan tumbuh kembang anak. Puskesmas Cakranegara, Mataram, NTB.",
   manifest: "/manifest.json",

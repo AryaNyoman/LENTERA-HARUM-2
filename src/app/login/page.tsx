@@ -37,7 +37,7 @@ export default async function LoginPage({
           </div>
           <h1 className="font-judul text-2xl font-bold leading-tight">Halo! Selamat datang 👋</h1>
           <p className="mt-1 text-[12.5px] font-semibold text-white/90">
-            SIMPUS-POSYANDU · Puskesmas Cakranegara
+            Lentera Harum Posyandu · Puskesmas Cakranegara
           </p>
         </div>
       </div>

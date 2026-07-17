@@ -1,7 +1,11 @@
-/* Panduan kader/ortu — rangkuman jadwal & catatan NTB (diporting dari app KADER lama,
- * teks aturan medis sesuai CLAUDE.md; kode vaksin mengikuti katalog kanonik).
+/* Panduan kader/ortu — kartu Pojok Baca, jadwal per usia, panduan per jenis vaksin
+ * (accordion — konten di src/lib/panduan-vaksin.ts), lalu Catatan NTB paling bawah.
+ * Teks aturan medis sesuai CLAUDE.md; kode vaksin mengikuti katalog kanonik.
  * Ilustrasi pakai <img> biasa (PNG kecil dari /public — tanpa optimizer, ringan utk HP). */
 /* eslint-disable @next/next/no-img-element */
+
+import Link from "next/link";
+import { PANDUAN_VAKSIN, type PanduanVaksin } from "@/lib/panduan-vaksin";
 
 const JADWAL = [
   { usia: "Lahir", isi: "HB0 (idealnya <24 jam, s.d. 7 hari)", img: "/gambar/bayi-baru-lahir.png" },
@@ -14,11 +18,12 @@ const JADWAL = [
   { usia: "18 bulan", isi: "DPT-HB-Hib Baduta (interval 12 bln dari dosis-3) + MR Baduta (interval 6 bln dari MR-1).", img: "/gambar/anak-laki.png" },
 ];
 
-const EDUKASI = [
-  { judul: "Demam setelah imunisasi", isi: "Reaksi wajar 1–2 hari. Kompres hangat, ASI lebih sering. Ke faskes bila >39°C / >2 hari.", img: "/gambar/edukasi-demam.png" },
-  { judul: "Bengkak di bekas suntikan", isi: "Normal — kompres dingin, jangan dipijat. Hilang sendiri 2–3 hari.", img: "/gambar/edukasi-bengkak.png" },
-  { judul: "Setelah vaksin tetes (OPV/Rotavirus)", isi: "Jangan beri makan/minum ±10 menit setelah tetes. Muntah banyak? Lapor petugas.", img: "/gambar/edukasi-tetes-oral.png" },
-  { judul: "Benjolan bekas BCG", isi: "Benjolan kecil lalu luka kecil yang sembuh sendiri = tanda vaksin bekerja. Jangan dipencet.", img: "/gambar/edukasi-benjolan.png" },
+/** 4 seksi wajib per vaksin, berurutan — lihat PLAN-2026-07-16-lentera-harum.md § U3. */
+const SEKSI: { kunci: keyof Omit<PanduanVaksin, "id" | "nama">; label: string }[] = [
+  { kunci: "manfaat", label: "1) Manfaat & Tujuan Imunisasi" },
+  { kunci: "pasca", label: "2) Edukasi Pasca Imunisasi" },
+  { kunci: "batasUsia", label: "3) Batas Usia Pemberian" },
+  { kunci: "kejar", label: "4) Panduan Kejar Imunisasi" },
 ];
 
 export default function PanduanKonten({ peran = "kader" }: { peran?: "kader" | "ortu" }) {
@@ -26,14 +31,29 @@ export default function PanduanKonten({ peran = "kader" }: { peran?: "kader" | "
   const aksen = ortu ? "var(--coral-gelap)" : "var(--teal-gelap)";
   const kotak = ortu ? "var(--coral-muda)" : "var(--teal-muda)";
   const kartuBorder = ortu ? "var(--garis-ortu)" : "var(--garis-kader)";
+  const hrefPojokBaca = ortu ? "/ortu/pojok-baca" : "/kader/pojok-baca";
 
   return (
     <div className="mx-auto max-w-md px-4 pt-3.5">
-      <section className="flex flex-col gap-2">
+      <Link
+        href={hrefPojokBaca}
+        className="pop pop-1 flex items-center gap-3 rounded-[22px] border-2 bg-[var(--kartu)] px-4 py-3.5 transition-transform active:scale-[.97]"
+        style={{ borderColor: kartuBorder }}
+      >
+        <span className="shrink-0 text-[26px]">📚</span>
+        <span className="min-w-0 flex-1">
+          <span className="font-judul block text-sm font-bold" style={{ color: aksen }}>Pojok Baca Imun</span>
+          <span className="block text-[11px] font-semibold leading-snug text-[var(--teks-sekunder)]">
+            Jadwal hari imunisasi, pendaftaran BPJS, kontak petugas &amp; materi
+          </span>
+        </span>
+      </Link>
+
+      <section className="mt-4 flex flex-col gap-2">
         {JADWAL.map((j, i) => (
           <div
             key={j.usia}
-            className={`pop pop-${Math.min(i + 1, 6)} flex items-center gap-3 rounded-[20px] border-2 bg-[var(--kartu)] px-3 py-2.5`}
+            className={`pop pop-${Math.min(i + 2, 6)} flex items-center gap-3 rounded-[20px] border-2 bg-[var(--kartu)] px-3 py-2.5`}
             style={{ borderColor: kartuBorder }}
           >
             <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl" style={{ background: kotak }}>
@@ -47,7 +67,33 @@ export default function PanduanKonten({ peran = "kader" }: { peran?: "kader" | "
         ))}
       </section>
 
-      <section className="pop relative mt-5 rounded-[22px] border-2 bg-[var(--kartu)] p-4" style={{ borderColor: "var(--kuning-border)" }}>
+      <h2 className="font-judul mt-5 text-base font-bold" style={{ color: aksen }}>Panduan per Jenis Vaksin 💉</h2>
+      <section className="mt-2 flex flex-col gap-2">
+        {PANDUAN_VAKSIN.map((v) => (
+          <details
+            key={v.id}
+            className="group rounded-[20px] border-2 bg-[var(--kartu)] px-3.5 py-3"
+            style={{ borderColor: kartuBorder }}
+          >
+            <summary className="flex cursor-pointer list-none items-center gap-2.5 [&::-webkit-details-marker]:hidden">
+              <img src="/gambar/vaksin-vial.png" alt="" width={30} height={30} className="h-[30px] w-[30px] shrink-0 object-contain" />
+              <span className="font-judul min-w-0 flex-1 text-[13px] font-bold" style={{ color: aksen }}>{v.nama}</span>
+              <span className="shrink-0 text-[11px] font-semibold text-[var(--abu)] group-open:hidden">▾ buka</span>
+              <span className="hidden shrink-0 text-[11px] font-semibold text-[var(--abu)] group-open:inline">▴ tutup</span>
+            </summary>
+            <div className="mt-2.5 flex flex-col gap-2.5 border-t-2 pt-2.5" style={{ borderColor: kartuBorder }}>
+              {SEKSI.map((s) => (
+                <div key={s.kunci}>
+                  <p className="font-judul text-[10.5px] font-bold uppercase tracking-wide" style={{ color: aksen }}>{s.label}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">{v[s.kunci]}</p>
+                </div>
+              ))}
+            </div>
+          </details>
+        ))}
+      </section>
+
+      <section className="pop relative mb-5 mt-5 rounded-[22px] border-2 bg-[var(--kartu)] p-4" style={{ borderColor: "var(--kuning-border)" }}>
         <span
           className="font-judul absolute -top-[11px] left-3.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
           style={{ background: "var(--kuning)", color: "var(--kuning-gelap)", transform: "rotate(-1.5deg)" }}
@@ -61,23 +107,6 @@ export default function PanduanKonten({ peran = "kader" }: { peran?: "kader" | "
           <li><b>JE</b> (Japanese Encephalitis) tidak tersedia gratis di NTB — hanya klinik <b style={{ color: "#d95f38" }}>SWASTA</b>, tidak masuk IDL/IBL.</li>
           <li><b>Hexavalen</b> (6-in-1) sudah mengandung IPV → tak perlu IPV terpisah. <b>Rotarix</b> cukup 2 dosis; <b>Rotavac</b> 3 dosis.</li>
         </ul>
-      </section>
-
-      <h2 className="font-judul mt-5 text-base font-bold" style={{ color: aksen }}>Edukasi untuk Orang Tua 💬</h2>
-      <section className="mt-2 flex flex-col gap-2">
-        {EDUKASI.map((e) => (
-          <div
-            key={e.judul}
-            className="flex items-start gap-3 rounded-[20px] border-2 bg-[var(--kartu)] px-3 py-2.5"
-            style={{ borderColor: "var(--coral-pastel)" }}
-          >
-            <img src={e.img} alt="" width={44} height={44} className="h-11 w-11 shrink-0 object-contain" />
-            <div className="min-w-0">
-              <p className="font-judul text-[13px] font-bold text-[var(--coral-gelap)]">{e.judul}</p>
-              <p className="mt-0.5 text-[11px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">{e.isi}</p>
-            </div>
-          </div>
-        ))}
       </section>
     </div>
   );

@@ -57,15 +57,21 @@ const SLOT_VARIAN: Record<string, string> = Object.fromEntries(
   Object.entries(VARIAN_MEREK).flatMap(([slot, varian]) => varian.map((v) => [v.kode, slot])),
 );
 
-/** Aturan pemberian per SLOT dosis (hari, dihitung dari tanggal lahir).
- *  minHari/maxHari = jendela usia; setelahSlot+intervalHari = jarak minimal
- *  dari dosis sebelumnya dalam seri (dari tanggal dosis sebelumnya yang TERISI).
+/** Aturan pemberian per SLOT dosis. Jendela usia dinyatakan SALAH SATU dari:
+ *  - minHari/maxHari (hari sejak lahir) — dipakai HB0 saja (jendela sempit lintas-hari).
+ *  - minBulan/maksBulan (bulan kalender penuh, inklusif) — dipakai semua slot lain;
+ *    dihitung via `tglTambahBulan` (klem akhir bulan, BUKAN estimasi hari).
+ *  setelahSlot+intervalHari = jarak minimal dari dosis sebelumnya dalam seri (dari
+ *  tanggal dosis sebelumnya yang TERISI) — SELALU dalam hari, tak berubah oleh revisi ini.
  *  wajibUrutan=false → interval berlaku HANYA bila dosis sebelumnya sudah terisi
  *  (tak wajib diisi dulu; cth PCV3 yang boleh lepas dari PCV2).
- *  Sumber: arahan pemilik (Aryawa) 13 Jul 2026 + interval seri 28 hari. */
+ *  Sumber: tabel usia dikonfirmasi pemilik (petugas kesehatan) 17 Jul 2026,
+ *  interval antar-dosis dalam seri = arahan pemilik 13 Jul 2026 (tak berubah). */
 export interface AturanDosis {
-  minHari: number;
+  minHari?: number;
   maxHari?: number;
+  minBulan?: number;
+  maksBulan?: number;
   setelahSlot?: string;
   intervalHari?: number;
   wajibUrutan?: boolean;
@@ -73,25 +79,25 @@ export interface AturanDosis {
 
 export const ATURAN_DOSIS: Record<string, AturanDosis> = {
   HB0_1_7H: { minHari: 0, maxHari: 7 },
-  BCG: { minHari: 8 },
-  POLIO1: { minHari: 8 },
-  POLIO2: { minHari: 56, setelahSlot: "POLIO1", intervalHari: 28 },
-  POLIO3: { minHari: 84, setelahSlot: "POLIO2", intervalHari: 28 },
-  POLIO4: { minHari: 112, setelahSlot: "POLIO3", intervalHari: 28 },
-  PENTA1: { minHari: 56 },
-  PENTA2: { minHari: 84, setelahSlot: "PENTA1", intervalHari: 28 },
-  PENTA3: { minHari: 112, setelahSlot: "PENTA2", intervalHari: 28 },
-  PCV1: { minHari: 56 },
-  PCV2: { minHari: 84, setelahSlot: "PCV1", intervalHari: 28 },
-  PCV3: { minHari: 336, setelahSlot: "PCV2", intervalHari: 56, wajibUrutan: false },
-  ROTA1: { minHari: 56 },
-  ROTA2: { minHari: 84, setelahSlot: "ROTA1", intervalHari: 28 },
-  ROTA3: { minHari: 112, setelahSlot: "ROTA2", intervalHari: 28 },
-  IPV1: { minHari: 112 },
-  IPV2: { minHari: 252 },
-  MR: { minHari: 252 },
-  DPT_BADUTA: { minHari: 504, setelahSlot: "PENTA3", intervalHari: 336 },
-  MR_BADUTA: { minHari: 504, setelahSlot: "MR", intervalHari: 168 },
+  BCG: { minBulan: 0, maksBulan: 11 },
+  POLIO1: { minBulan: 0, maksBulan: 11 },
+  POLIO2: { minBulan: 2, maksBulan: 59, setelahSlot: "POLIO1", intervalHari: 28 },
+  POLIO3: { minBulan: 3, maksBulan: 59, setelahSlot: "POLIO2", intervalHari: 28 },
+  POLIO4: { minBulan: 4, maksBulan: 59, setelahSlot: "POLIO3", intervalHari: 28 },
+  PENTA1: { minBulan: 2, maksBulan: 60 },
+  PENTA2: { minBulan: 3, maksBulan: 60, setelahSlot: "PENTA1", intervalHari: 28 },
+  PENTA3: { minBulan: 4, maksBulan: 60, setelahSlot: "PENTA2", intervalHari: 28 },
+  PCV1: { minBulan: 2, maksBulan: 60 },
+  PCV2: { minBulan: 3, maksBulan: 60, setelahSlot: "PCV1", intervalHari: 28 },
+  PCV3: { minBulan: 12, maksBulan: 24, setelahSlot: "PCV2", intervalHari: 56, wajibUrutan: false },
+  ROTA1: { minBulan: 2, maksBulan: 4 },
+  ROTA2: { minBulan: 3, maksBulan: 6, setelahSlot: "ROTA1", intervalHari: 28 },
+  ROTA3: { minBulan: 4, maksBulan: 8, setelahSlot: "ROTA2", intervalHari: 28 },
+  IPV1: { minBulan: 4, maksBulan: 59 },
+  IPV2: { minBulan: 9, maksBulan: 59 },
+  MR: { minBulan: 9, maksBulan: 59 },
+  DPT_BADUTA: { minBulan: 18, maksBulan: 60, setelahSlot: "PENTA3", intervalHari: 336 },
+  MR_BADUTA: { minBulan: 18, maksBulan: 59, setelahSlot: "MR", intervalHari: 168 },
 };
 
 /** Slot yang diberikan dalam SATU kunjungan (same-day) — BCG (suntik) & bOPV1 (tetes)
@@ -110,11 +116,25 @@ function tglTambahHari(tgl: string, hari: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Selisih hari (b − a) antar dua tanggal (YYYY-MM-DD), UTC-safe. */
-function selisihHari(dariTgl: string, keTgl: string): number {
-  const a = new Date(dariTgl + "T00:00:00Z").getTime();
-  const b = new Date(keTgl + "T00:00:00Z").getTime();
-  return Math.round((b - a) / 86400000);
+/** Tambah N bulan KALENDER (bukan estimasi 30 hari) ke tanggal (YYYY-MM-DD), UTC-safe,
+ *  dgn KLEM akhir bulan bila tanggal asal melebihi jumlah hari bulan tujuan
+ *  (mis. 31 Jan + 1 bulan → 28/29 Feb, BUKAN lompat ke 2-3 Mar). */
+export function tglTambahBulan(tgl: string, bulan: number): string {
+  const [y, m, d] = tgl.split("-").map(Number);
+  const idxAbsolut = y * 12 + (m - 1) + bulan; // indeks bulan absolut, 0 = Jan tahun 0
+  const targetY = Math.floor(idxAbsolut / 12);
+  const targetM = idxAbsolut % 12; // 0-indexed (0 = Jan)
+  const akhirBulan = new Date(Date.UTC(targetY, targetM + 1, 0)).getUTCDate();
+  const targetD = Math.min(d, akhirBulan);
+  return new Date(Date.UTC(targetY, targetM, targetD)).toISOString().slice(0, 10);
+}
+
+/** Tanggal awal jendela (baseline SAJA, TANPA interval antar-dosis) satu SLOT untuk
+ *  anak lahir `tglLahir` — dipakai batasDosis (sebelum interval dipertimbangkan) &
+ *  minTglDosis (dipakai UI, tak menghitung interval — lihat dokumentasi minTglDosis). */
+function baselineMinTgl(slot: string, tglLahir: string): string {
+  const a = ATURAN_DOSIS[slot];
+  return a?.minBulan != null ? tglTambahBulan(tglLahir, a.minBulan) : tglTambahHari(tglLahir, a?.minHari ?? 0);
 }
 
 const BULAN_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
@@ -123,17 +143,12 @@ function formatTglIndo(tgl: string): string {
   return `${d} ${BULAN_ID[m - 1]} ${y}`;
 }
 
-/** Usia MINIMAL (hari) sebelum satu dosis boleh dicatat — baseline dari ATURAN_DOSIS
- *  (belum memperhitungkan interval antar-dosis; itu tugas `batasDosis`).
+/** Tanggal paling awal (YYYY-MM-DD) satu dosis boleh diberikan utk anak lahir `tglLahir`
+ *  (baseline SAJA — belum memperhitungkan interval antar-dosis; itu tugas `batasDosis`).
  *  Menerima kode slot maupun kode varian merek. */
-export function minUsiaHari(kode: string): number {
-  const slot = SLOT_VARIAN[kode] ?? kode;
-  return ATURAN_DOSIS[slot]?.minHari ?? 0;
-}
-
-/** Tanggal paling awal (YYYY-MM-DD) satu dosis boleh diberikan utk anak lahir `tglLahir`. */
 export function minTglDosis(tglLahir: string, kode: string): string {
-  return tglTambahHari(tglLahir, minUsiaHari(kode));
+  const slot = SLOT_VARIAN[kode] ?? kode;
+  return baselineMinTgl(slot, tglLahir);
 }
 
 /** Nama tampil sebuah kode (slot atau varian merek) — untuk pesan galat. */
@@ -188,28 +203,34 @@ export function batasDosis(
   const a = ATURAN_DOSIS[slot] ?? { minHari: 0 };
   const nama = namaKode(slot);
 
-  let minHari = a.minHari;
-  let alasan = `${nama} minimal usia ${minHari} hari.`;
+  const baselineMin = baselineMinTgl(slot, tglLahir);
+  const max = a.maksBulan != null
+    ? tglTambahHari(tglTambahBulan(tglLahir, a.maksBulan + 1), -1)
+    : a.maxHari != null ? tglTambahHari(tglLahir, a.maxHari) : undefined;
+
+  let min = baselineMin;
+  let alasan = a.minBulan != null
+    ? `${nama} minimal usia ${a.minBulan} bulan.`
+    : `${nama} minimal usia ${a.minHari ?? 0} hari.`;
 
   if (a.setelahSlot && a.intervalHari != null) {
     const tglSebelum = tglDosis(vaksin, a.setelahSlot);
     if (tglSebelum) {
       const tglIntervalMin = tglTambahHari(tglSebelum, a.intervalHari);
-      const hariIntervalMin = selisihHari(tglLahir, tglIntervalMin);
-      if (hariIntervalMin > minHari) {
-        minHari = hariIntervalMin;
+      if (tglIntervalMin > min) {
+        min = tglIntervalMin;
         alasan = `${nama} minimal ${a.intervalHari} hari setelah ${namaKode(a.setelahSlot)} (${formatTglIndo(tglIntervalMin)}).`;
       }
     }
   }
 
-  const min = tglTambahHari(tglLahir, minHari);
-  const max = a.maxHari != null ? tglTambahHari(tglLahir, a.maxHari) : undefined;
   // Guard: pesan jendela min–max hanya dipakai bila interval TIDAK menggeser min — bila
-  // suatu slot kelak punya maxHari sekaligus interval yang menang, alasan interval lebih
-  // spesifik & sudah menyebut tanggal minimalnya, jangan ditimpa.
-  if (a.maxHari != null && minHari === a.minHari) {
-    alasan = `${nama} hanya boleh ${a.minHari}–${a.maxHari} hari setelah lahir.`;
+  // suatu slot punya max sekaligus interval yang menang, alasan interval lebih spesifik
+  // & sudah menyebut tanggal minimalnya, jangan ditimpa.
+  if (max != null && min === baselineMin) {
+    alasan = a.minBulan != null
+      ? `${nama} hanya boleh diberikan usia ${a.minBulan}–${a.maksBulan} bulan.`
+      : `${nama} hanya boleh ${a.minHari}–${a.maxHari} hari setelah lahir.`;
   }
 
   return { min, max, alasan };

@@ -71,7 +71,7 @@ export async function GET(req: Request): Promise<Response> {
   return new NextResponse(buf as ArrayBuffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="impor-anak-simpus-posyandu-${tgl}.xlsx"`,
+      "Content-Disposition": `attachment; filename="impor-anak-lentera-harum-${tgl}.xlsx"`,
     },
   });
 }
