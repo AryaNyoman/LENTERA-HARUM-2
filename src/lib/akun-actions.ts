@@ -114,12 +114,16 @@ export async function buatKader(
   const nama = String(formData.get("nama") ?? "").trim();
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const posyanduIds = formData.getAll("posyandu").map((v) => Number(v)).filter((n) => n > 0);
+  const noHp = normHp(String(formData.get("noHp") ?? ""));
 
   if (nama.length < 3) return { galat: "Nama minimal 3 huruf." };
   if (!/^[a-z0-9._-]{3,}$/.test(username)) {
     return { galat: "Username minimal 3 karakter (huruf kecil/angka/titik)." };
   }
   if (posyanduIds.length === 0) return { galat: "Pilih minimal 1 posyandu binaan." };
+  if (noHp && !/^08\d{8,11}$/.test(noHp)) {
+    return { galat: "No HP tidak valid (mulai 08, 10-13 digit)." };
+  }
   if (await db.user.findUnique({ where: { username } })) {
     return { galat: "Username sudah dipakai." };
   }
@@ -130,6 +134,7 @@ export async function buatKader(
       peran: "KADER",
       nama,
       username,
+      noHp,
       sandiHash: await bcrypt.hash(sandi, 10),
       perluGantiSandi: true,
       binaan: { create: posyanduIds.map((posyanduId) => ({ posyanduId })) },
@@ -182,6 +187,28 @@ export async function setAktif(formData: FormData): Promise<void> {
   await db.user.update({ where: { id }, data: { aktif } });
   if (!aktif) await db.sesi.deleteMany({ where: { userId: id } });
   await catat(admin.id, aktif ? "AKUN_DIAKTIFKAN" : "AKUN_DINONAKTIFKAN", `user ${id}`);
+  redirect("/admin");
+}
+
+/** Isi/ubah No HP akun (ADMIN atau KADER) — dipakai Admin utk mencantumkan kontak
+ *  dirinya sendiri & kader di Pojok Baca. ORTU tidak lewat sini (No HP ortu = username,
+ *  diisi saat daftar). Kosong = hapus dari daftar kontak (bukan galat). Nomornya sendiri
+ *  TIDAK dicatat ke log aktivitas (data pribadi) — hanya username target. */
+export async function setNoHp(formData: FormData): Promise<void> {
+  const admin = await wajibUser("ADMIN");
+  const id = Number(formData.get("id")) || 0;
+  if (!Number.isInteger(id) || id <= 0) redirect("/admin?galat=Akun+tidak+ditemukan");
+  const target = await db.user.findUnique({ where: { id } });
+  if (!target) redirect("/admin?galat=Akun+tidak+ditemukan");
+  if (target.peran !== "ADMIN" && target.peran !== "KADER") {
+    redirect("/admin?galat=Akun+ini+tidak+bisa+diubah+dari+sini");
+  }
+  const noHp = normHp(String(formData.get("noHp") ?? ""));
+  if (noHp && !/^08\d{8,11}$/.test(noHp)) {
+    redirect("/admin?galat=No+HP+tidak+valid+(mulai+08,+10-13+digit)");
+  }
+  await db.user.update({ where: { id }, data: { noHp } });
+  await catat(admin.id, "NO_HP_DIUBAH", target.username);
   redirect("/admin");
 }
 

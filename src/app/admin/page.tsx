@@ -1,11 +1,13 @@
 import Kepala from "@/components/kepala";
 import { wajibUser } from "@/lib/sesi";
 import { db } from "@/lib/db";
-import { setAktif, hapusAkun } from "@/lib/akun-actions";
+import { setAktif, hapusAkun, setNoHp } from "@/lib/akun-actions";
 import { tarikSimpus } from "@/lib/sinkron-actions";
+import { URL_APLIKASI } from "@/lib/pojok-baca";
 import FormKader, { TombolReset } from "./form-kader";
 import FormOrtu from "./form-ortu";
 import { TombolTarik } from "./tombol-tarik";
+import QrBagikan from "./qr-bagikan";
 
 function JudulSeksi({ judul, n, coral }: { judul: string; n: number; coral?: boolean }) {
   return (
@@ -61,6 +63,36 @@ function TombolHapus({ id, nama }: { id: number; nama: string }) {
           </button>
         </form>
       </div>
+    </details>
+  );
+}
+
+/** Baris No HP ringkas + form inline "✎ ubah" via <details> (pola sama TombolHapus).
+ *  Dipakai di kartu kader & admin — admin.mengisi/mengubah nomor kontak yang tampil
+ *  di Pojok Baca (src/components/pojok-baca-konten.tsx). */
+function BarisNoHp({ id, noHp }: { id: number; noHp: string }) {
+  return (
+    <details className="group/hp mt-1.5">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[10.5px] font-semibold text-[var(--abu)] [&::-webkit-details-marker]:hidden">
+        <span className="truncate">📞 {noHp || "belum diisi"}</span>
+        <span className="shrink-0 font-bold text-[var(--teal-tua)]">
+          <span className="group-open/hp:hidden">✎ ubah</span>
+          <span className="hidden group-open/hp:inline">▴ tutup</span>
+        </span>
+      </summary>
+      <form action={setNoHp} className="mt-1.5 flex gap-1.5">
+        <input type="hidden" name="id" value={id} />
+        <input
+          name="noHp"
+          defaultValue={noHp}
+          placeholder="081234567890"
+          inputMode="numeric"
+          className="h-8 min-w-0 flex-1 rounded-lg border-2 border-[#e2ece7] bg-[#fbfdfc] px-2 text-[11px] font-semibold outline-none focus:border-[var(--teal)]"
+        />
+        <button className="h-8 shrink-0 rounded-lg bg-[var(--teal)] px-2.5 text-[10.5px] font-bold text-white">
+          Simpan
+        </button>
+      </form>
     </details>
   );
 }
@@ -168,6 +200,8 @@ export default async function AdminPage({
           </div>
         </details>
 
+        <QrBagikan url={URL_APLIKASI} />
+
         <JudulSeksi judul="Kader" n={kader.length} />
         <div className="mt-2 space-y-3">
           {kader.length === 0 && (
@@ -196,6 +230,7 @@ export default async function AdminPage({
               <p className="mt-0.5 truncate text-[10.5px] font-semibold text-[var(--abu)]">
                 Binaan: {u.binaan.map((b) => b.posyandu.nama).join(", ") || "—"}
               </p>
+              <BarisNoHp id={u.id} noHp={u.noHp} />
               <div className="mt-2 flex gap-2">
                 <TombolReset id={u.id} />
                 <TombolAktif id={u.id} aktif={u.aktif} />
@@ -255,8 +290,11 @@ export default async function AdminPage({
         <div className="mt-2 space-y-2">
           {admin.map((u) => (
             <div key={u.id} className="rounded-[20px] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-3.5 py-3 text-[13.5px]">
-              <span className="font-bold">{u.nama}</span>{" "}
-              <span className="text-[11px] font-semibold text-[var(--abu)]">@{u.username}</span>
+              <p className="truncate">
+                <span className="font-bold">{u.nama}</span>{" "}
+                <span className="text-[11px] font-semibold text-[var(--abu)]">@{u.username}</span>
+              </p>
+              <BarisNoHp id={u.id} noHp={u.noHp} />
             </div>
           ))}
         </div>

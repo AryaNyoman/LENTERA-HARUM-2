@@ -57,6 +57,10 @@ export default function FormKader({ kelurahan }: { kelurahan: KelurahanOpsi[] })
           Username <span className="font-semibold text-[var(--abu)]">(huruf kecil)</span>
           <input name="username" className={inp} placeholder="mis. kader.seruni" />
         </label>
+        <label className={`${lbl} mt-2.5`}>
+          No HP <span className="font-semibold text-[var(--abu)]">(opsional, boleh diisi nanti)</span>
+          <input name="noHp" className={inp} placeholder="mis. 081234567890" inputMode="numeric" />
+        </label>
 
         <p className={`${lbl} mt-3`}>Posyandu binaan (boleh lebih dari satu):</p>
         <div className="mt-1.5 max-h-64 space-y-3 overflow-y-auto rounded-2xl border-2 border-[#e2ece7] p-3">

@@ -17,7 +17,7 @@ export default function Kepala({ user }: { user: UserSesi }) {
   return (
     <div className="flex items-center gap-3">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
-        <img src="/icon-192.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
+        <img src="/gambar/logo-droplet.png" alt="" width={28} height={28} className="h-7 w-7 object-contain" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="font-judul truncate text-[15px] font-bold leading-tight text-white">

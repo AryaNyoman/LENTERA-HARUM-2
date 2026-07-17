@@ -32,9 +32,13 @@ export default async function LoginPage({
           style={{ animation: "floaty 7s ease-in-out infinite" }}
         />
         <div className="pop relative">
-          <div className="mx-auto mb-3 flex h-[76px] w-[76px] items-center justify-center rounded-full bg-white shadow-[0_10px_24px_rgba(23,79,71,.28)]">
-            <img src="/icon-192.png" alt="" width={52} height={52} className="h-[52px] w-[52px] rounded-[14px] object-contain" />
-          </div>
+          <img
+            src="/gambar/logo-lentera-harum.png"
+            alt="Lentera Harum"
+            width={220}
+            height={220}
+            className="mx-auto mb-2 h-auto w-full max-w-[220px] rounded-3xl shadow-[0_10px_24px_rgba(23,79,71,.28)]"
+          />
           <h1 className="font-judul text-2xl font-bold leading-tight">Halo! Selamat datang 👋</h1>
           <p className="mt-1 text-[12.5px] font-semibold text-white/90">
             Lentera Harum Posyandu · Puskesmas Cakranegara
