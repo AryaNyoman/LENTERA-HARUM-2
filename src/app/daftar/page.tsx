@@ -1,10 +1,19 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { daftarOrtu } from "@/lib/akun-actions";
 import { ambilUser, rumahPeran } from "@/lib/sesi";
 import { db } from "@/lib/db";
 import InputSandi from "@/components/input-sandi";
+
+// Kelurahan hanya berubah saat sinkron SIMPUS (mingguan/manual) — aman di-cache 1 jam.
+// Halaman ini publik (termasuk bot) & TANPA data per-user, jadi aman di-cache bersama.
+const ambilKelurahan = unstable_cache(
+  () => db.kelurahan.findMany({ orderBy: { urutan: "asc" } }),
+  ["daftar-kelurahan"],
+  { revalidate: 3600, tags: ["kelurahan"] },
+);
 
 export default async function DaftarPage({
   searchParams,
@@ -14,7 +23,7 @@ export default async function DaftarPage({
   const user = await ambilUser();
   if (user) redirect(rumahPeran(user.peran));
   const { galat } = await searchParams;
-  const kelurahan = await db.kelurahan.findMany({ orderBy: { urutan: "asc" } });
+  const kelurahan = await ambilKelurahan();
 
   const inp =
     "mt-1.5 h-12 w-full rounded-2xl border-2 border-[var(--krem-border)] bg-[var(--krem-input)] px-4 text-[15px] font-semibold outline-none transition-colors focus:border-[var(--coral)]";
@@ -103,7 +112,7 @@ export default async function DaftarPage({
 
         <p className="pop pop-2 mt-3.5 text-center text-xs font-semibold text-[var(--teks-sekunder)]">
           Sudah punya akun?{" "}
-          <Link href="/login" className="font-bold text-[var(--teal-tua)]">
+          <Link href="/login" prefetch={false} className="font-bold text-[var(--teal-tua)]">
             Masuk di sini
           </Link>
         </p>

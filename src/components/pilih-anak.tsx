@@ -23,6 +23,7 @@ export default function PilihAnak({
           <Link
             key={a.ref}
             href={`${dasar}?anak=${encodeURIComponent(a.ref)}`}
+            prefetch={false}
             className="font-judul flex h-10 shrink-0 items-center gap-1.5 rounded-full pl-1.5 pr-3.5 text-xs font-bold transition-transform active:scale-[.95]"
             style={
               aktif

@@ -131,7 +131,7 @@ export default async function DashboardOrtu() {
             <p className="mt-1 text-[11.5px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
               Hubungkan Si Kecil dulu lewat menu <b>Anakku</b> — isi sendiri atau pakai kode QR dari kader.
             </p>
-            <Link href="/ortu/anakku" className="btn3d btn3d-coral mt-3.5 inline-flex h-11 items-center rounded-[14px] px-5 text-sm">
+            <Link href="/ortu/anakku" prefetch={false} className="btn3d btn3d-coral mt-3.5 inline-flex h-11 items-center rounded-[14px] px-5 text-sm">
               Buka Anakku
             </Link>
           </div>
@@ -161,6 +161,7 @@ export default async function DashboardOrtu() {
             {pengingat && (
               <Link
                 href="/ortu/jadwal"
+                prefetch={false}
                 className="pop pop-1 flex items-center gap-3 rounded-[22px] border-2 bg-[var(--kartu)] px-3.5 py-3 transition-transform active:scale-[.97]"
                 style={{ borderColor: "var(--kuning-pastel)" }}
               >
@@ -193,6 +194,7 @@ export default async function DashboardOrtu() {
                 <Link
                   key={p.href}
                   href={p.href}
+                  prefetch={false}
                   className="rounded-[20px] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-1.5 py-3 text-center transition-transform active:scale-[.92]"
                 >
                   <span className="block text-[22px]">{p.e}</span>

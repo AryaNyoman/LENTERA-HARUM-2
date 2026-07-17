@@ -37,6 +37,7 @@ export default function PanduanKonten({ peran = "kader" }: { peran?: "kader" | "
     <div className="mx-auto max-w-md px-4 pt-3.5">
       <Link
         href={hrefPojokBaca}
+        prefetch={false}
         className="pop pop-1 flex items-center gap-3 rounded-[22px] border-2 bg-[var(--kartu)] px-4 py-3.5 transition-transform active:scale-[.97]"
         style={{ borderColor: kartuBorder }}
       >

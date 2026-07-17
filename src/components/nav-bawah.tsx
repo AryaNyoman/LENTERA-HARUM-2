@@ -33,6 +33,7 @@ export default function NavBawah({
             <Link
               key={it.href}
               href={it.href}
+              prefetch={false}
               className="font-judul flex min-h-[44px] flex-1 flex-col items-center justify-center gap-px py-1 text-[10px] font-bold"
               style={{ color: aktif ? gelap : "var(--abu)" }}
             >

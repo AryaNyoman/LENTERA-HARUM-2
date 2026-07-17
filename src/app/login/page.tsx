@@ -77,6 +77,7 @@ export default async function LoginPage({
 
         <Link
           href="/daftar"
+          prefetch={false}
           className="pop pop-2 mt-4 flex items-center gap-3 rounded-[20px] border-2 border-[var(--coral-border)] bg-[var(--coral-muda)] px-4 py-3.5"
         >
           <img src="/gambar/anak-perempuan.png" alt="" width={44} height={44} className="h-11 w-11 shrink-0 object-contain" />

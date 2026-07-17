@@ -129,6 +129,7 @@ export default async function DashboardKader() {
         {tungguVerif > 0 && (
           <Link
             href="/kader/daftar-bayi"
+            prefetch={false}
             className="pop pop-5 mt-3 flex items-center gap-3 rounded-[22px] border-2 bg-[var(--kartu)] px-4 py-3.5 transition-transform active:scale-[.97]"
             style={{ borderColor: "var(--verif-garis)" }}
           >
@@ -172,12 +173,14 @@ export default async function DashboardKader() {
         <div className="mt-3 flex gap-2.5">
           <Link
             href="/kader/daftar-bayi"
+            prefetch={false}
             className="btn3d btn3d-teal flex h-[50px] flex-1 items-center justify-center text-[15px]"
           >
             Daftar Bayi
           </Link>
           <Link
             href="/kader/anak-baru"
+            prefetch={false}
             className="btn-garis flex h-[50px] flex-1 items-center justify-center border-2 text-[15px]"
             style={{ borderColor: "var(--coral)", color: "#d95f38", boxShadow: "0 5px 0 var(--coral-border)" }}
           >

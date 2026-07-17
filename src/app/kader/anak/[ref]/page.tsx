@@ -157,11 +157,12 @@ export default async function DetailAnak({
           )}
           {anak.sumber === "BARU" ? (
             <div className="flex gap-2 p-3">
-              <Link href={`/kader/anak-baru?ref=b:${anak.id}`} className="btn3d btn3d-teal flex h-[42px] flex-1 items-center justify-center rounded-[13px] text-[12.5px]" style={{ boxShadow: "0 4px 0 var(--teal-tua)" }}>
+              <Link href={`/kader/anak-baru?ref=b:${anak.id}`} prefetch={false} className="btn3d btn3d-teal flex h-[42px] flex-1 items-center justify-center rounded-[13px] text-[12.5px]" style={{ boxShadow: "0 4px 0 var(--teal-tua)" }}>
                 ✎ Edit data
               </Link>
               <Link
                 href={`/kader/anak/${anak.ref}/qr`}
+                prefetch={false}
                 className="btn-garis flex h-[42px] flex-1 items-center justify-center border-2 text-[12.5px]"
                 style={{ borderColor: "var(--coral)", color: "#d95f38", borderRadius: "13px" }}
               >
@@ -185,6 +186,7 @@ export default async function DetailAnak({
             <div className="p-3">
               <Link
                 href={`/kader/anak/${anak.ref}/qr`}
+                prefetch={false}
                 className="btn-garis flex h-[42px] items-center justify-center border-2 text-[12.5px]"
                 style={{ borderColor: "var(--coral)", color: "#d95f38", borderRadius: "13px" }}
               >

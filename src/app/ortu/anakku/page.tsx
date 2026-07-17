@@ -35,6 +35,7 @@ export default async function Anakku() {
           <span className="flex shrink-0 items-center gap-2">
             <Link
               href="/ortu/anak-baru"
+              prefetch={false}
               className="btn3d btn3d-coral flex h-[42px] items-center rounded-[14px] px-3 text-[12.5px]"
               style={{ boxShadow: "0 4px 0 var(--coral-tua)" }}
             >
@@ -42,6 +43,7 @@ export default async function Anakku() {
             </Link>
             <Link
               href="/ortu/klaim"
+              prefetch={false}
               className="btn-garis flex h-[42px] items-center gap-1.5 rounded-[14px] border-2 border-[var(--coral)] px-2.5 text-[12.5px]"
               style={{ color: "#d95f38" }}
             >
@@ -67,6 +69,7 @@ export default async function Anakku() {
             <div className="mt-3.5 flex flex-col gap-2 text-left">
               <Link
                 href="/ortu/anak-baru"
+                prefetch={false}
                 className="flex items-center gap-3 rounded-[18px] border-2 border-[var(--coral-border)] bg-[var(--coral-muda)] px-3.5 py-3 transition-transform active:scale-[.97]"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[var(--coral)] text-white" style={{ boxShadow: "0 3px 0 var(--coral-tua)" }}>
@@ -81,6 +84,7 @@ export default async function Anakku() {
               </Link>
               <Link
                 href="/ortu/klaim"
+                prefetch={false}
                 className="flex items-center gap-3 rounded-[18px] border-2 border-[var(--garis-kader)] bg-[#fbfdfc] px-3.5 py-3 transition-transform active:scale-[.97]"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[var(--teal-muda)] text-[var(--teal-gelap)]">
@@ -115,7 +119,7 @@ export default async function Anakku() {
 
             return (
               <div key={a.ref} className="pop overflow-hidden rounded-3xl border-2 border-[var(--coral-pastel)] bg-[var(--kartu)]">
-                <Link href={`/ortu/anak/${a.ref}`} className="block transition-transform active:scale-[.98]">
+                <Link href={`/ortu/anak/${a.ref}`} prefetch={false} className="block transition-transform active:scale-[.98]">
                   <div className="relative flex items-center gap-3.5 p-4" style={{ background: "linear-gradient(135deg,#fdf0e9,#fbe9dd)" }}>
                     <span
                       className="font-judul absolute right-3.5 top-3 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
@@ -182,6 +186,7 @@ export default async function Anakku() {
                   <div className="flex items-stretch gap-2 border-t-2 border-[var(--coral-pastel)] px-4 py-2.5">
                     <Link
                       href={`/ortu/anak-baru?ref=b:${a.id}`}
+                      prefetch={false}
                       className="btn-garis font-judul flex h-9 flex-1 items-center justify-center border-2 border-[var(--garis-kader)] text-[11.5px] text-[var(--teks-3)]"
                       style={{ borderRadius: "12px" }}
                     >
@@ -216,6 +221,7 @@ export default async function Anakku() {
           {daftar.length > 0 && (
             <Link
               href="/ortu/klaim"
+              prefetch={false}
               className="pop pop-2 block rounded-3xl border-[2.5px] border-dashed border-[#ead9c4] px-4 py-5 text-center transition-colors hover:bg-white/70"
             >
               <p className="text-[26px]">👶✨</p>

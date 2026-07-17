@@ -25,6 +25,7 @@ export default function KepalaHalaman({
         {balik && (
           <Link
             href={balik}
+            prefetch={false}
             aria-label="Kembali"
             className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl border-2 bg-[var(--kartu)] transition-transform active:scale-90"
             style={{ borderColor: borderBack }}

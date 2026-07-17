@@ -58,6 +58,7 @@ export default async function DaftarBayi({
       <Link
         key={a.ref}
         href={`/kader/anak/${a.ref}`}
+        prefetch={false}
         className="pop relative mt-1 flex items-center gap-3 rounded-[22px] border-2 bg-[var(--kartu)] p-3.5 transition-transform active:scale-[.97]"
         style={{ borderColor: perluV ? "var(--verif-garis)" : "var(--garis-kader)" }}
       >
@@ -132,6 +133,7 @@ export default async function DaftarBayi({
             </a>
             <Link
               href="/kader/anak-baru"
+              prefetch={false}
               aria-label="Daftarkan anak baru"
               className="btn3d btn3d-coral flex h-10 w-10 items-center justify-center rounded-[14px] text-xl"
               style={{ boxShadow: "0 4px 0 var(--coral-tua)" }}
@@ -165,6 +167,7 @@ export default async function DaftarBayi({
               <Link
                 key={f.label}
                 href={href}
+                prefetch={false}
                 className="font-judul flex h-[34px] shrink-0 items-center rounded-full px-4 text-xs font-bold"
                 style={
                   aktif
