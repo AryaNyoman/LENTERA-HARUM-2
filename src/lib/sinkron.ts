@@ -1,8 +1,9 @@
 import "server-only";
 import { Client } from "pg";
 import { createDecipheriv } from "crypto";
+import { revalidateTag } from "next/cache";
 import { db } from "@/lib/db";
-import { segel, type IsiAnak } from "@/lib/brankas";
+import { segel, buka, type IsiAnak } from "@/lib/brankas";
 import { lengkap, SYARAT_IDL, SYARAT_IBL } from "@/lib/vaksin";
 import { hitungUsiaBulan, kelompokUsia } from "@/lib/anak";
 
@@ -11,7 +12,13 @@ import { hitungUsiaBulan, kelompokUsia } from "@/lib/anak";
  *  PII anak di sana terenkripsi AES-256-GCM dengan DEK brankas — "amplop layanan"
  *  = DEK yang diekspor pemilik lewat scripts/export-dek-layanan.ts di repo Simpus-Imun,
  *  lalu disimpan di env SIMPUS_DEK (hex 64 karakter). Kunci hanya hidup di server ini.
- *  Hasil: master wilayah + salinan anak (disegel ulang kunci website) + cache dashboard. */
+ *  Hasil: master wilayah + salinan anak (disegel ulang kunci website) + cache dashboard.
+ *
+ *  Prinsip hemat-operasi (PLAN 2026-07-18b/H2): baca lokal SEKALI, bandingkan plaintext
+ *  di memori, tulis HANYA yang baru/berubah — bukan upsert per baris tanpa syarat.
+ *  `tarikSumber()` (pg, baca+dekripsi saja) dipisah dari `terapkanHasil()` (db lokal saja)
+ *  supaya diff bisa diuji dengan sumber sintetis tanpa koneksi Neon. Alur produksi tetap
+ *  satu pintu lewat `jalankanSinkron()`. */
 
 interface HasilSinkron {
   kelurahan: number;
@@ -19,6 +26,70 @@ interface HasilSinkron {
   anak: number;
   gagalDekripsi: number;
   dicocokkan: number; // AnakBaru DIEKSPOR → MASUK_SIMPUS
+}
+
+/** Anak sebagaimana dibaca dari SUMBER (SIMPUS), sudah didekripsi ke plaintext. */
+export interface AnakSumber {
+  idSimpus: number;
+  posyanduId: number;
+  isi: IsiAnak;
+}
+
+/** Anak sebagaimana ada di LOKAL saat ini. `isi: null` = gagal buka (kunci beda/data
+ *  korup) — diperlakukan sebagai "berubah" (tulis ulang), bukan dilempar sebagai galat. */
+export interface AnakLokal {
+  idSimpus: number;
+  posyanduId: number;
+  isi: IsiAnak | null;
+}
+
+/** Bahan mentah hasil `tarikSumber()` — cukup untuk `terapkanHasil()` tanpa koneksi pg lagi. */
+export interface SumberSinkron {
+  kelurahan: { id: number; nama: string; urutan: number }[];
+  posyandu: { id: number; kelurahanId: number; nama: string; namaPosyandu: string; aktif: boolean; khusus: boolean }[];
+  anak: AnakSumber[];
+  idTidakJelas: number[]; // id posyandu keranjang "Alamat Tidak Jelas" — anaknya tak diimpor
+  gagalDekripsi: number;
+}
+
+/** Stringify stabil (urutan kunci objek diabaikan, termasuk nested `vaksin`) — dipakai
+ *  membandingkan plaintext anak apa adanya, tanpa peduli urutan properti JS. */
+function stabilkan(nilai: unknown): unknown {
+  if (Array.isArray(nilai)) return nilai.map(stabilkan);
+  if (nilai !== null && typeof nilai === "object") {
+    const obj = nilai as Record<string, unknown>;
+    const hasil: Record<string, unknown> = {};
+    for (const k of Object.keys(obj).sort()) hasil[k] = stabilkan(obj[k]);
+    return hasil;
+  }
+  return nilai;
+}
+
+export function stringifyStabil(isi: IsiAnak): string {
+  return JSON.stringify(stabilkan(isi));
+}
+
+export interface RencanaDiffAnak {
+  baru: AnakSumber[];
+  ubah: AnakSumber[];
+  sama: number;
+}
+
+/** Logika diff murni (tanpa db/crypto side-effect) — bisa diuji langsung tanpa dev.db.
+ *  Baris lokal yang tak ada di `sumber` (hilang dari SIMPUS) sengaja DIABAIKAN di sini:
+ *  perilaku lama tidak menghapus anak (relasi klaim/tumbuh/centang ber-cascade). */
+export function rencanaDiffAnak(lokal: AnakLokal[], sumber: AnakSumber[]): RencanaDiffAnak {
+  const peta = new Map(lokal.map((l) => [l.idSimpus, l]));
+  const baru: AnakSumber[] = [];
+  const ubah: AnakSumber[] = [];
+  let sama = 0;
+  for (const s of sumber) {
+    const l = peta.get(s.idSimpus);
+    if (!l) { baru.push(s); continue; }
+    const berubah = l.isi === null || l.posyanduId !== s.posyanduId || stringifyStabil(l.isi) !== stringifyStabil(s.isi);
+    if (berubah) ubah.push(s); else sama++;
+  }
+  return { baru, ubah, sama };
 }
 
 /** Bentuk data anak di dalam blob SIMPUS (subset InputAnak repo Simpus-Imun). */
@@ -55,8 +126,9 @@ function keIsiAnak(b: AnakSimpusBlob): IsiAnak {
   };
 }
 
-/** Jalankan tarikan penuh. Lempar Error dengan pesan ramah bila konfigurasi belum ada. */
-export async function jalankanSinkron(): Promise<HasilSinkron> {
+/** Baca + dekripsi SAJA dari Neon SIMPUS (tanpa menyentuh db lokal) — bisa diganti
+ *  "sumber sintetis" saat uji, karena `terapkanHasil()` tak butuh koneksi pg. */
+export async function tarikSumber(): Promise<SumberSinkron> {
   const url = process.env.SIMPUS_DATABASE_URL ?? "";
   const dekHex = process.env.SIMPUS_DEK ?? "";
   if (!url) throw new Error("SIMPUS_DATABASE_URL belum diisi (connection string Neon SIMPUS).");
@@ -75,17 +147,9 @@ export async function jalankanSinkron(): Promise<HasilSinkron> {
   });
   await pg.connect();
   try {
-    // 1) master wilayah (id SIMPUS dipertahankan)
     const kel = await pg.query<{ id: number; nama: string; urutan: number }>(
       'SELECT id, nama, urutan FROM "Kelurahan" ORDER BY id',
     );
-    for (const k of kel.rows) {
-      await db.kelurahan.upsert({
-        where: { id: k.id },
-        create: { id: k.id, nama: k.nama, urutan: k.urutan },
-        update: { nama: k.nama, urutan: k.urutan },
-      });
-    }
     const pos = await pg.query<{ id: number; kelurahanId: number; nama: string; namaPosyandu: string; aktif: boolean; khusus: boolean }>(
       'SELECT id, "kelurahanId", nama, "namaPosyandu", aktif, khusus FROM "Posyandu" ORDER BY id',
     );
@@ -94,52 +158,179 @@ export async function jalankanSinkron(): Promise<HasilSinkron> {
     const idTidakJelas = new Set(
       pos.rows.filter((p) => /alamat tidak jelas/i.test(p.nama)).map((p) => p.id),
     );
-    for (const p of pos.rows) {
-      const aktif = p.aktif && !idTidakJelas.has(p.id);
-      await db.posyandu.upsert({
-        where: { id: p.id },
-        create: { id: p.id, kelurahanId: p.kelurahanId, nama: p.nama, namaPosyandu: p.namaPosyandu, aktif, khusus: p.khusus },
-        update: { kelurahanId: p.kelurahanId, nama: p.nama, namaPosyandu: p.namaPosyandu, aktif, khusus: p.khusus },
-      });
-    }
+    const posyandu = pos.rows.map((p) => ({
+      id: p.id,
+      kelurahanId: p.kelurahanId,
+      nama: p.nama,
+      namaPosyandu: p.namaPosyandu,
+      aktif: p.aktif && !idTidakJelas.has(p.id),
+      khusus: p.khusus,
+    }));
 
-    // 2) anak: dekripsi (DEK SIMPUS) → segel ulang (kunci website)
-    const anak = await pg.query<{ id: number; posyanduId: number; iv: string; tag: string; data: string }>(
+    // anak: dekripsi (DEK SIMPUS) → plaintext (segel ulang terjadi di terapkanHasil, hanya utk yang baru/berubah)
+    const anakRows = await pg.query<{ id: number; posyanduId: number; iv: string; tag: string; data: string }>(
       'SELECT id, "posyanduId", iv, tag, data FROM "Anak" ORDER BY id',
     );
-    let masuk = 0, gagal = 0;
-    const kini = new Date();
-    // bersihkan salinan lama anak keranjang tidak-jelas (bila tarikan sebelumnya sempat impor)
-    if (idTidakJelas.size > 0) {
-      await db.anakSimpus.deleteMany({ where: { posyanduId: { in: [...idTidakJelas] } } });
-    }
-    for (const a of anak.rows) {
+    const anak: AnakSumber[] = [];
+    let gagalDekripsi = 0;
+    for (const a of anakRows.rows) {
       if (idTidakJelas.has(a.posyanduId)) continue;
       try {
         const isi = keIsiAnak(dekripsiSimpus(a, dek));
-        if (!isi.nama || !isi.tglLahir) { gagal++; continue; }
-        const ulang = segel(isi);
-        await db.anakSimpus.upsert({
-          where: { idSimpus: a.id },
-          create: { idSimpus: a.id, posyanduId: a.posyanduId, ...ulang, sinkronPada: kini },
-          update: { posyanduId: a.posyanduId, ...ulang, sinkronPada: kini },
-        });
-        masuk++;
+        if (!isi.nama || !isi.tglLahir) { gagalDekripsi++; continue; }
+        anak.push({ idSimpus: a.id, posyanduId: a.posyanduId, isi });
       } catch {
-        gagal++;
+        gagalDekripsi++;
       }
     }
 
-    // 3) cocokkan balik AnakBaru DIEKSPOR ↔ AnakSimpus (NIK, atau nama+tglLahir+posyandu)
-    const dicocokkan = await cocokkanBalik();
-
-    // 4) cache dashboard (agregat non-PII per posyandu + total puskesmas)
-    await bangunCache(kini);
-
-    return { kelurahan: kel.rows.length, posyandu: pos.rows.length, anak: masuk, gagalDekripsi: gagal, dicocokkan };
+    return {
+      kelurahan: kel.rows.map((k) => ({ id: k.id, nama: k.nama, urutan: k.urutan })),
+      posyandu,
+      anak,
+      idTidakJelas: [...idTidakJelas],
+      gagalDekripsi,
+    };
   } finally {
     await pg.end();
   }
+}
+
+/** Terapkan sumber (sudah dibaca) ke db lokal: tulis HANYA yang baru/berubah.
+ *  Tanpa koneksi pg — bisa dipanggil langsung dgn `SumberSinkron` sintetis saat uji. */
+export async function terapkanHasil(sumber: SumberSinkron): Promise<HasilSinkron> {
+  const kini = new Date();
+
+  // Prinsip keandalan (temuan critic H2): satu baris busuk (mis. duplikat idSimpus dari
+  // dua run beriringan, atau FK yatim) TIDAK boleh membatalkan sisa sinkron. Kode lama
+  // upsert per baris di dalam try/catch, jadi galat per-baris memang tertelan per-baris —
+  // pertahankan sifat itu. createMany = SATU statement: gagal → ulang per-baris supaya
+  // tetangga sehat di batch yang sama tetap masuk.
+
+  // 1) kelurahan — diff & tulis hanya yang baru/berubah
+  const kelLokal = await db.kelurahan.findMany();
+  const petaKelLokal = new Map(kelLokal.map((k) => [k.id, k]));
+  const kelBaru = sumber.kelurahan.filter((k) => !petaKelLokal.has(k.id));
+  const kelUbah = sumber.kelurahan.filter((k) => {
+    const l = petaKelLokal.get(k.id);
+    return l !== undefined && (l.nama !== k.nama || l.urutan !== k.urutan);
+  });
+  if (kelBaru.length > 0) {
+    try {
+      await db.kelurahan.createMany({ data: kelBaru });
+    } catch {
+      for (const k of kelBaru) {
+        try { await db.kelurahan.create({ data: k }); } catch { /* lewati baris busuk */ }
+      }
+    }
+  }
+  for (const k of kelUbah) {
+    try {
+      await db.kelurahan.update({ where: { id: k.id }, data: { nama: k.nama, urutan: k.urutan } });
+    } catch { /* lewati */ }
+  }
+  if (kelBaru.length > 0 || kelUbah.length > 0) {
+    // Best-effort: di luar konteks request Next (skrip/cron/uji) revalidateTag melempar
+    // "static generation store missing" — invalidasi cache tak boleh menjegal sinkron data.
+    try { revalidateTag("kelurahan"); } catch { /* abaikan */ }
+  }
+
+  // 2) posyandu — pola sama
+  const posLokal = await db.posyandu.findMany();
+  const petaPosLokal = new Map(posLokal.map((p) => [p.id, p]));
+  const posBaru = sumber.posyandu.filter((p) => !petaPosLokal.has(p.id));
+  const posUbah = sumber.posyandu.filter((p) => {
+    const l = petaPosLokal.get(p.id);
+    return l !== undefined && (
+      l.kelurahanId !== p.kelurahanId || l.nama !== p.nama || l.namaPosyandu !== p.namaPosyandu ||
+      l.aktif !== p.aktif || l.khusus !== p.khusus
+    );
+  });
+  if (posBaru.length > 0) {
+    try {
+      await db.posyandu.createMany({ data: posBaru });
+    } catch {
+      for (const p of posBaru) {
+        try { await db.posyandu.create({ data: p }); } catch { /* lewati baris busuk */ }
+      }
+    }
+  }
+  for (const p of posUbah) {
+    try {
+      await db.posyandu.update({
+        where: { id: p.id },
+        data: { kelurahanId: p.kelurahanId, nama: p.nama, namaPosyandu: p.namaPosyandu, aktif: p.aktif, khusus: p.khusus },
+      });
+    } catch { /* lewati */ }
+  }
+
+  // 3) anak — baca lokal SEKALI, diff plaintext, tulis hanya baru/berubah
+  if (sumber.idTidakJelas.length > 0) {
+    await db.anakSimpus.deleteMany({ where: { posyanduId: { in: sumber.idTidakJelas } } });
+  }
+  const anakLokalRows = await db.anakSimpus.findMany({
+    select: { idSimpus: true, posyanduId: true, iv: true, tag: true, data: true },
+  });
+  const anakLokal: AnakLokal[] = anakLokalRows.map((a) => {
+    let isi: IsiAnak | null;
+    try { isi = buka<IsiAnak>({ iv: a.iv, tag: a.tag, data: a.data }); } catch { isi = null; }
+    return { idSimpus: a.idSimpus, posyanduId: a.posyanduId, isi };
+  });
+  const { baru, ubah } = rencanaDiffAnak(anakLokal, sumber.anak);
+
+  // Gagal-tulis anak dihitung ke `gagalDekripsi` — kode lama juga begitu (catch di sekeliling
+  // upsert lama menangkap galat tulis, bukan cuma galat dekripsi).
+  let gagalTulis = 0;
+  for (let i = 0; i < baru.length; i += 250) {
+    const batch = baru.slice(i, i + 250).map((a) => ({
+      idSimpus: a.idSimpus, posyanduId: a.posyanduId, ...segel(a.isi), sinkronPada: kini,
+    }));
+    try {
+      await db.anakSimpus.createMany({ data: batch });
+    } catch {
+      for (const baris of batch) {
+        try { await db.anakSimpus.create({ data: baris }); } catch { gagalTulis++; }
+      }
+    }
+  }
+  for (const a of ubah) {
+    try {
+      await db.anakSimpus.update({
+        where: { idSimpus: a.idSimpus },
+        data: { posyanduId: a.posyanduId, ...segel(a.isi), sinkronPada: kini },
+      });
+    } catch { gagalTulis++; }
+  }
+
+  // 4) cocokkan balik AnakBaru DIEKSPOR ↔ AnakSimpus (NIK, atau nama+tglLahir+posyandu)
+  const dicocokkan = await cocokkanBalik();
+
+  // 5) cache dashboard — pakai ulang plaintext yang sudah di memori (langkah 3), 0 query per-posyandu:
+  //    baris hidup dari sumber (fresh) + baris lokal yang tak ada di sumber (hilang/gagal-dekripsi
+  //    ronde ini, tak disentuh di atas → tetap hidup, pakai plaintext lokal yang berhasil dibuka).
+  const idSumberAnak = new Set(sumber.anak.map((a) => a.idSimpus));
+  const hidup: { posyanduId: number; isi: IsiAnak }[] = [
+    ...sumber.anak.map((a) => ({ posyanduId: a.posyanduId, isi: a.isi })),
+    ...anakLokal
+      .filter((l): l is AnakLokal & { isi: IsiAnak } => l.isi !== null && !idSumberAnak.has(l.idSimpus))
+      .map((l) => ({ posyanduId: l.posyanduId, isi: l.isi })),
+  ];
+  const semuaPosyanduId = new Set<number>([...petaPosLokal.keys(), ...posBaru.map((p) => p.id)]);
+  await bangunCache(kini, hidup, semuaPosyanduId);
+
+  return {
+    kelurahan: sumber.kelurahan.length,
+    posyandu: sumber.posyandu.length,
+    anak: sumber.anak.length - gagalTulis, // semantik lama: baris yang sukses diproses ronde ini
+    gagalDekripsi: sumber.gagalDekripsi + gagalTulis,
+    dicocokkan,
+  };
+}
+
+/** Jalankan tarikan penuh. Lempar Error dengan pesan ramah bila konfigurasi belum ada. */
+export async function jalankanSinkron(): Promise<HasilSinkron> {
+  const sumber = await tarikSumber();
+  return terapkanHasil(sumber);
 }
 
 /** AnakBaru DIEKSPOR yang kini sudah ada di SIMPUS → MASUK_SIMPUS + pindahkan klaim/tumbuh/centang. */
@@ -178,36 +369,53 @@ async function cocokkanBalik(): Promise<number> {
   return n;
 }
 
-/** Agregat non-PII per posyandu & total: {total,bayi,baduta,idl,ibl}. */
-async function bangunCache(kini: Date): Promise<void> {
-  const { buka } = await import("@/lib/brankas");
-  const semuaPos = await db.posyandu.findMany({ select: { id: true } });
-  const total = { total: 0, bayi: 0, baduta: 0, idl: 0, ibl: 0 };
+interface Agregat { total: number; bayi: number; baduta: number; idl: number; ibl: number }
+function agregatKosong(): Agregat {
+  return { total: 0, bayi: 0, baduta: 0, idl: 0, ibl: 0 };
+}
 
-  for (const p of semuaPos) {
-    const rows = await db.anakSimpus.findMany({ where: { posyanduId: p.id } });
-    const st = { total: 0, bayi: 0, baduta: 0, idl: 0, ibl: 0 };
-    for (const r of rows) {
-      try {
-        const isi = buka<IsiAnak>({ iv: r.iv, tag: r.tag, data: r.data });
-        st.total++;
-        const u = kelompokUsia(hitungUsiaBulan(isi.tglLahir, kini));
-        if (u === "0-11") st.bayi++; else if (u === "12-24") st.baduta++;
-        if (lengkap(isi.vaksin, SYARAT_IDL)) st.idl++;
-        if (lengkap(isi.vaksin, SYARAT_IBL)) st.ibl++;
-      } catch { /* lewati */ }
-    }
+/** Agregat non-PII per posyandu & total: {total,bayi,baduta,idl,ibl}. Dihitung di memori dari
+ *  `hidup` (plaintext yang sudah dibaca langkah 3 di `terapkanHasil` — TANPA findMany per posyandu).
+ *  Baca cache lama SEKALI, upsert hanya kunci yang JSON-nya berubah + "puskesmas" (selalu ditulis
+ *  supaya `sinkronPada` "tarikan terakhir" yang dibaca dashboard kader/ortu tetap maju). */
+async function bangunCache(kini: Date, hidup: { posyanduId: number; isi: IsiAnak }[], posyanduIds: Set<number>): Promise<void> {
+  const perPosyandu = new Map<number, Agregat>();
+  for (const { posyanduId, isi } of hidup) {
+    const st = perPosyandu.get(posyanduId) ?? agregatKosong();
+    st.total++;
+    const u = kelompokUsia(hitungUsiaBulan(isi.tglLahir, kini));
+    if (u === "0-11") st.bayi++; else if (u === "12-24") st.baduta++;
+    if (lengkap(isi.vaksin, SYARAT_IDL)) st.idl++;
+    if (lengkap(isi.vaksin, SYARAT_IBL)) st.ibl++;
+    perPosyandu.set(posyanduId, st);
+  }
+
+  const total = agregatKosong();
+  for (const st of perPosyandu.values()) {
     total.total += st.total; total.bayi += st.bayi; total.baduta += st.baduta;
     total.idl += st.idl; total.ibl += st.ibl;
-    await db.cacheDashboard.upsert({
-      where: { kunci: `posyandu:${p.id}` },
-      create: { kunci: `posyandu:${p.id}`, data: JSON.stringify(st), sinkronPada: kini },
-      update: { data: JSON.stringify(st), sinkronPada: kini },
-    });
   }
-  await db.cacheDashboard.upsert({
-    where: { kunci: "puskesmas" },
-    create: { kunci: "puskesmas", data: JSON.stringify(total), sinkronPada: kini },
-    update: { data: JSON.stringify(total), sinkronPada: kini },
-  });
+
+  const cacheLama = await db.cacheDashboard.findMany({ select: { kunci: true, data: true } });
+  const dataLama = new Map(cacheLama.map((c) => [c.kunci, c.data]));
+
+  for (const id of posyanduIds) {
+    const kunci = `posyandu:${id}`;
+    const json = JSON.stringify(perPosyandu.get(id) ?? agregatKosong());
+    if (dataLama.get(kunci) === json) continue; // tak berubah — jangan sentuh
+    try {
+      await db.cacheDashboard.upsert({
+        where: { kunci },
+        create: { kunci, data: json, sinkronPada: kini },
+        update: { data: json, sinkronPada: kini },
+      });
+    } catch { /* satu kunci gagal jangan menjegal sisanya — tarikan berikut menyembuhkan */ }
+  }
+  try {
+    await db.cacheDashboard.upsert({
+      where: { kunci: "puskesmas" },
+      create: { kunci: "puskesmas", data: JSON.stringify(total), sinkronPada: kini },
+      update: { data: JSON.stringify(total), sinkronPada: kini },
+    });
+  } catch { /* idem */ }
 }
