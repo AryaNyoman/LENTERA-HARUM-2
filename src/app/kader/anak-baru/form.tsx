@@ -44,6 +44,7 @@ export default function FormAnak({
   tema = "kader",
   kunciKelurahan,
   namaOrtuTetap,
+  kunciDosis,
 }: {
   posyandu: PosyanduOpsi[];
   idEdit?: number;
@@ -62,6 +63,10 @@ export default function FormAnak({
   kunciKelurahan?: string;
   /** Kunci "Nama orang tua" ke nama akun ortu (tetap terkirim sebagai field form). */
   namaOrtuTetap?: string;
+  /** Keputusan pemilik 18 Jul 2026: tanggal vaksin hanya diisi petugas (admin) — kader &
+   *  ortu terkunci. Input `disabled` di sini cuma kosmetik; gerbang sesungguhnya ada di
+   *  server (bacaFormAnak/galatDosisTerkunci) — WAJIB, tak boleh diandalkan sendirian. */
+  kunciDosis: boolean;
 }) {
   const [merek, setMerek] = useState<Record<string, string>>(() => merekAwal(awal?.vaksin ?? {}));
   const [tglLahir, setTglLahir] = useState(awal?.tglLahir ?? "");
@@ -102,7 +107,7 @@ export default function FormAnak({
 
   const inpStyle: React.CSSProperties = { borderColor: garis, background: latar };
   const inp = "mt-1.5 h-[46px] w-full rounded-[14px] border-2 px-3.5 text-base font-semibold outline-none transition-colors";
-  const inpTgl = "h-[42px] w-full rounded-xl border-2 px-2.5 text-sm font-semibold outline-none";
+  const inpTgl = "h-[42px] w-full rounded-xl border-2 px-2.5 text-sm font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <form action={action ?? simpanAnakBaru}>
@@ -229,13 +234,20 @@ export default function FormAnak({
 
       <section className={`pop pop-1 mt-3.5 ${kartu}`} style={{ borderColor: ortu ? "var(--garis-ortu)" : "var(--garis-kader)" }}>
         <h2 className="font-judul text-[15px] font-bold" style={{ color: aksenTua }}>💉 Dosis yang sudah diterima</h2>
-        <p className="mt-1 text-[10.5px] font-semibold leading-relaxed text-[var(--abu)]">
-          {ortu ? (
-            <>Lihat buku KIA Si Kecil — isi tanggal hanya untuk dosis yang <b>sudah</b> diberikan. Belum ada / tidak yakin? Kosongkan saja, kader akan melengkapi.</>
-          ) : (
-            <>Isi tanggal hanya untuk dosis yang <b>sudah</b> diberikan. Pilihan merek memengaruhi slot: Hexavalen menyembunyikan IPV, Rotarix menyembunyikan Rotavirus 3.</>
-          )}
-        </p>
+        {kunciDosis ? (
+          <p className="mt-1 flex items-start gap-1.5 text-[10.5px] font-semibold leading-relaxed text-[var(--abu)]">
+            <span aria-hidden>🔒</span>
+            <span>Tanggal vaksin hanya diisi petugas puskesmas.</span>
+          </p>
+        ) : (
+          <p className="mt-1 text-[10.5px] font-semibold leading-relaxed text-[var(--abu)]">
+            {ortu ? (
+              <>Lihat buku KIA Si Kecil — isi tanggal hanya untuk dosis yang <b>sudah</b> diberikan. Belum ada / tidak yakin? Kosongkan saja, kader akan melengkapi.</>
+            ) : (
+              <>Isi tanggal hanya untuk dosis yang <b>sudah</b> diberikan. Pilihan merek memengaruhi slot: Hexavalen menyembunyikan IPV, Rotarix menyembunyikan Rotavirus 3.</>
+            )}
+          </p>
+        )}
 
         <div className="mt-3">
           {grup.map(([um, daftar]) => {
@@ -264,6 +276,7 @@ export default function FormAnak({
                           min={batas?.min}
                           max={batas?.max}
                           defaultValue={awal?.vaksin?.[kodeAktif] ?? ""}
+                          disabled={kunciDosis}
                           bungkus="relative inline-block w-[150px] shrink-0"
                           className={inpTgl}
                           style={inpStyle}
@@ -298,8 +311,9 @@ export default function FormAnak({
                         min={batas?.min}
                         max={batas?.max}
                         defaultValue={awal?.vaksin?.[kodeAktif] ?? ""}
+                        disabled={kunciDosis}
                         bungkus="relative mt-1.5 block"
-                        className="h-[42px] w-full rounded-xl border-2 px-2.5 text-sm font-semibold outline-none"
+                        className="h-[42px] w-full rounded-xl border-2 px-2.5 text-sm font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-50"
                         style={inpStyle}
                       />
                     </div>

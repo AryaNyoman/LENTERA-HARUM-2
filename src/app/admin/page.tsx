@@ -1,9 +1,12 @@
+import Link from "next/link";
 import Kepala from "@/components/kepala";
 import { wajibUser } from "@/lib/sesi";
 import { db } from "@/lib/db";
 import { setAktif, hapusAkun, setNoHp } from "@/lib/akun-actions";
 import { tarikSimpus } from "@/lib/sinkron-actions";
 import { URL_APLIKASI } from "@/lib/pojok-baca";
+import { ambilPengaturan } from "@/lib/pengaturan";
+import { simpanPengaturanPojok } from "@/lib/pengaturan-actions";
 import FormKader, { TombolReset } from "./form-kader";
 import FormOrtu from "./form-ortu";
 import { TombolTarik } from "./tombol-tarik";
@@ -97,6 +100,25 @@ function BarisNoHp({ id, noHp }: { id: number; noHp: string }) {
   );
 }
 
+/** Form 2 link (BPJS/Drive) Pojok Baca — dalam <details> tertutup default (halaman
+ *  jangan memanjang). Lihat src/lib/pengaturan.ts (KV di CacheDashboard, bukan cache). */
+function FormPengaturanPojok({ linkBpjs, linkDrive }: { linkBpjs: string; linkDrive: string }) {
+  const inp = "mt-1 h-9 w-full rounded-lg border-2 border-[#e2ece7] bg-[#fbfdfc] px-2.5 text-[11px] font-semibold outline-none focus:border-[var(--teal)]";
+  return (
+    <form action={simpanPengaturanPojok} className="mt-2 flex flex-col gap-2">
+      <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
+        Link BPJS (QR pendaftaran)
+        <input name="linkBpjs" defaultValue={linkBpjs} placeholder="https://…" className={inp} />
+      </label>
+      <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
+        Link Drive materi imunisasi
+        <input name="linkDrive" defaultValue={linkDrive} placeholder="https://… (boleh kosong)" className={inp} />
+      </label>
+      <button className="h-9 rounded-lg bg-[var(--teal)] text-[11px] font-bold text-white">Simpan link</button>
+    </form>
+  );
+}
+
 export default async function AdminPage({
   searchParams,
 }: {
@@ -105,7 +127,7 @@ export default async function AdminPage({
   const user = await wajibUser("ADMIN");
   const { galat, ok } = await searchParams;
 
-  const [users, kelurahan, cache] = await Promise.all([
+  const [users, kelurahan, cache, pengaturan] = await Promise.all([
     db.user.findMany({
       orderBy: [{ peran: "asc" }, { nama: "asc" }],
       include: { binaan: { include: { posyandu: true } } },
@@ -115,6 +137,7 @@ export default async function AdminPage({
       include: { posyandu: { where: { aktif: true }, orderBy: { id: "asc" } } },
     }),
     db.cacheDashboard.findUnique({ where: { kunci: "puskesmas" } }),
+    ambilPengaturan(),
   ]);
 
   const kader = users.filter((u) => u.peran === "KADER");
@@ -175,6 +198,37 @@ export default async function AdminPage({
             </p>
           )}
         </section>
+
+        <Link
+          href="/admin/vaksin"
+          prefetch={false}
+          className="pop mt-3 flex items-center gap-3 rounded-[22px] border-2 border-[var(--teal-pastel)] bg-[var(--kartu)] px-4 py-3.5 transition-transform active:scale-[.98]"
+        >
+          <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-2xl bg-[var(--teal-muda)] text-[22px]">
+            💉
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-judul text-sm font-bold text-[var(--teal-gelap)]">Isi Tanggal Vaksin</p>
+            <p className="text-[10.5px] font-semibold leading-snug text-[var(--teks-sekunder)]">
+              anak belum masuk SIMPUS (draf / sudah disetor)
+            </p>
+          </div>
+          <span className="shrink-0 text-lg text-[var(--abu)]">›</span>
+        </Link>
+
+        <details className="group mt-3">
+          <summary className="pop flex cursor-pointer list-none items-center justify-between rounded-[18px] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-4 py-3 text-[14px] font-bold text-[var(--teal-gelap)] [&::-webkit-details-marker]:hidden">
+            <span>🔗 Link Pojok Baca</span>
+            <span className="text-[11px] font-semibold text-[var(--abu)] group-open:hidden">▾ buka</span>
+            <span className="hidden text-[11px] font-semibold text-[var(--abu)] group-open:inline">▴ tutup</span>
+          </summary>
+          <div className="mt-2 rounded-[18px] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] p-4">
+            <p className="text-[10px] font-semibold leading-relaxed text-[var(--abu)]">
+              Dipakai di Pojok Baca kader &amp; ortu (QR pendaftaran BPJS, tombol materi imunisasi).
+            </p>
+            <FormPengaturanPojok linkBpjs={pengaturan.linkBpjs} linkDrive={pengaturan.linkDrive} />
+          </div>
+        </details>
 
         <details className="group mt-3">
           <summary className="pop flex cursor-pointer list-none items-center justify-between rounded-[18px] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-4 py-3 text-[14px] font-bold text-[var(--teal-gelap)] [&::-webkit-details-marker]:hidden">

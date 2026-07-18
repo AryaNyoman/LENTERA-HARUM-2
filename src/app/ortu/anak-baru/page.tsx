@@ -64,6 +64,7 @@ export default async function OrtuAnakBaruPage({
           tema="ortu"
           kunciKelurahan={kunciKelurahan}
           namaOrtuTetap={user.nama}
+          kunciDosis
           catatan={
             <>
               Anak akan berstatus <b>belum diverifikasi</b> sampai kader posyandu memeriksanya —

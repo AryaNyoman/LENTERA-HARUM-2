@@ -6,12 +6,10 @@ import { ambilAnakOrtu } from "@/lib/ortu";
 import { fmtTglId, hitungUsiaBulan, labelUsia } from "@/lib/anak";
 import {
   DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK,
-  adaDosis, dosisTakBerlaku, lengkap, minTglDosis, SYARAT_IDL, SYARAT_IBL,
+  adaDosis, dosisTakBerlaku, lengkap, SYARAT_IDL, SYARAT_IBL,
 } from "@/lib/vaksin";
 import TumbuhBagian from "@/components/tumbuh-bagian";
-import InputTanggal from "@/components/input-tanggal";
-import FormAutoSimpan from "@/components/form-auto-simpan";
-import { daftarCentang, tandaiOrtu, hapusCentangOrtu } from "@/lib/centang-actions";
+import { daftarCentang } from "@/lib/centang-actions";
 
 function isiSlot(vaksin: Record<string, string>, kode: string): { tgl: string; merek?: string } | null {
   const varian = VARIAN_MEREK[kode];
@@ -147,6 +145,10 @@ export default async function DetailAnakOrtu({
           </div>
         </section>
 
+        <p className="mt-2.5 flex items-center gap-1.5 text-[10.5px] font-semibold leading-relaxed text-[var(--abu)]">
+          <span aria-hidden>🔒</span> Tanggal vaksin diisi petugas puskesmas.
+        </p>
+
         <div className="mt-3.5 flex flex-col gap-2.5">
           {[...grup.entries()].map(([um, daftar], gi) => {
             const kejar = um === umKejar;
@@ -197,7 +199,6 @@ export default async function DetailAnakOrtu({
                   const slot = isiSlot(anak.isi.vaksin, d.kode);
                   const sudahD = adaDosis(anak.isi.vaksin, d.kode);
                   const c = !sudahD ? centangMap.get(d.kode) : undefined;
-                  const bisaTandai = !sudahD && !takBerlaku && !c;
                   const telat = tambahBulanIso(anak.isi.tglLahir, um).getTime() < now.getTime();
 
                   if (takBerlaku) {
@@ -247,99 +248,33 @@ export default async function DetailAnakOrtu({
                     );
                   }
                   if (c) {
-                    // belum diverifikasi — ortu masih bisa ubah tanggal/lokasi atau hapus catatannya
+                    // belum diverifikasi — riwayat saja (ortu tak lagi bisa ubah/hapus, kunci dosis)
                     return (
-                      <details key={d.kode} className="group py-1">
-                        <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
-                          <span className="font-judul flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-xs font-extrabold" style={{ background: "var(--verif)", color: "var(--verif-pekat)" }}>
-                            !
+                      <div key={d.kode} className="flex items-center gap-2 py-1">
+                        <span className="font-judul flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-xs font-extrabold" style={{ background: "var(--verif)", color: "var(--verif-pekat)" }}>
+                          !
+                        </span>
+                        <span className="min-w-0 flex-1 text-[13px] font-bold">
+                          {d.nama}
+                          <span className="font-judul ml-1.5 rounded-md px-1.5 py-0.5 text-[9.5px] font-bold" style={{ background: "var(--verif-muda)", color: "var(--verif-teks)" }}>
+                            🟡 menunggu verifikasi
                           </span>
-                          <span className="min-w-0 flex-1 text-[13px] font-bold">
-                            {d.nama}
-                            <span className="font-judul ml-1.5 rounded-md px-1.5 py-0.5 text-[9.5px] font-bold" style={{ background: "var(--verif-muda)", color: "var(--verif-teks)" }}>
-                              🟡 menunggu verifikasi
-                            </span>
-                          </span>
-                          <span className="shrink-0 text-[11px] font-semibold text-[var(--abu)]">{fmtTglId(c.tgl)}</span>
-                          <span className="font-judul shrink-0 text-[10.5px] font-bold" style={{ color: "#d95f38" }}>
-                            <span className="group-open:hidden">ubah ▸</span>
-                            <span className="hidden group-open:inline">tutup ▴</span>
-                          </span>
-                        </summary>
-                        <div className="mt-1.5 rounded-2xl border-[1.5px] border-[var(--coral-border)] px-3 py-2.5" style={{ background: "#fdf4f0" }}>
-                          <FormAutoSimpan action={tandaiOrtu}>
-                            <input type="hidden" name="ref" value={anak.ref} />
-                            <input type="hidden" name="kode" value={d.kode} />
-                            <div className="mt-1.5 grid grid-cols-2 gap-2">
-                              <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
-                                Tanggal
-                                <InputTanggal name="tgl" defaultValue={c.tgl} min={minTglDosis(anak.isi.tglLahir, d.kode)} bungkus="relative mt-1 block" className="h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" />
-                              </label>
-                              <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
-                                Tempat
-                                <input name="lokasi" defaultValue={c.lokasi} className="mt-1 h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" placeholder="mis. Klinik Anugerah" />
-                              </label>
-                            </div>
-                            <button className="btn3d btn3d-coral mt-2 h-[42px] w-full rounded-[13px] text-[13px]" style={{ boxShadow: "0 4px 0 var(--coral-tua)" }}>
-                              Simpan perubahan
-                            </button>
-                          </FormAutoSimpan>
-                          <form action={hapusCentangOrtu} className="mt-1.5">
-                            <input type="hidden" name="id" value={c.id} />
-                            <button className="btn-garis h-9 w-full rounded-xl border-2 border-[var(--merah)] text-[11px] text-[var(--merah)]">
-                              🗑 Hapus catatan ini
-                            </button>
-                          </form>
-                        </div>
-                      </details>
+                        </span>
+                        <span className="shrink-0 text-[11px] font-semibold text-[var(--abu)]">{fmtTglId(c.tgl)}</span>
+                      </div>
                     );
                   }
                   return (
-                    <details key={d.kode} className="group py-1">
-                      <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
-                        <span
-                          className="h-[19px] w-[19px] shrink-0 rounded-full border-2 border-dashed"
-                          style={{ borderColor: telat ? "#e39a90" : "#e0cfc0", boxSizing: "border-box", background: telat ? "var(--merah-muda)" : "transparent" }}
-                        />
-                        <span className="min-w-0 flex-1 text-[13px] font-semibold text-[var(--teks-3)]">
-                          {d.nama}
-                          {um >= 9 && <span className="ml-1 text-[10px] font-semibold text-[var(--abu)]">{um} bln</span>}
-                        </span>
-                        <span className="font-judul shrink-0 text-[10.5px] font-bold" style={{ color: "#d95f38" }}>
-                          <span className="group-open:hidden">tandai sudah ▸</span>
-                          <span className="hidden group-open:inline">tutup ▴</span>
-                        </span>
-                      </summary>
-                      {bisaTandai && (
-                        <div className="mt-1.5 rounded-2xl border-[1.5px] border-[var(--coral-border)] px-3 py-2.5" style={{ background: "#fdf4f0" }}>
-                          <p className="text-[10.5px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
-                            Sudah diberikan di faskes lain (RS/klinik)? Catat di sini:
-                          </p>
-                          <FormAutoSimpan action={tandaiOrtu}>
-                            <input type="hidden" name="ref" value={anak.ref} />
-                            <input type="hidden" name="kode" value={d.kode} />
-                            <div className="mt-1.5 grid grid-cols-2 gap-2">
-                              <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
-                                Tanggal
-                                <InputTanggal name="tgl" min={minTglDosis(anak.isi.tglLahir, d.kode)} bungkus="relative mt-1 block" className="h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" />
-                              </label>
-                              <label className="text-[10.5px] font-extrabold text-[var(--teks-3)]">
-                                Tempat
-                                <input name="lokasi" className="mt-1 h-[42px] w-full rounded-xl border-2 border-[var(--garis-ortu)] bg-white px-2 text-xs font-semibold outline-none" placeholder="mis. Klinik Anugerah" />
-                              </label>
-                            </div>
-                            <button className="btn3d btn3d-coral mt-2 h-[42px] w-full rounded-[13px] text-[13px]" style={{ boxShadow: "0 4px 0 var(--coral-tua)" }}>
-                              Simpan catatan
-                            </button>
-                          </FormAutoSimpan>
-                          <p className="mt-1.5 text-[10px] font-semibold leading-relaxed text-[var(--abu)]">
-                            Catatan Anda berstatus{" "}
-                            <span className="rounded px-1 py-0.5 font-extrabold" style={{ background: "var(--verif-muda)", color: "var(--verif-teks)" }}>🟡 menunggu</span>{" "}
-                            sampai dicek kader dengan buku KIA.
-                          </p>
-                        </div>
-                      )}
-                    </details>
+                    <div key={d.kode} className="flex items-center gap-2 py-1">
+                      <span
+                        className="h-[19px] w-[19px] shrink-0 rounded-full border-2 border-dashed"
+                        style={{ borderColor: telat ? "#e39a90" : "#e0cfc0", boxSizing: "border-box", background: telat ? "var(--merah-muda)" : "transparent" }}
+                      />
+                      <span className="min-w-0 flex-1 text-[13px] font-semibold text-[var(--teks-3)]">
+                        {d.nama}
+                        {um >= 9 && <span className="ml-1 text-[10px] font-semibold text-[var(--abu)]">{um} bln</span>}
+                      </span>
+                    </div>
                   );
                 })}
                 </div>

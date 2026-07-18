@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nomorInternasional, JADWAL_HARI, LINK_BPJS, LINK_DRIVE, URL_APLIKASI } from "@/lib/pojok-baca";
+import { nomorInternasional, JADWAL_HARI, URL_APLIKASI } from "@/lib/pojok-baca";
 
 describe("nomorInternasional — normalisasi nomor HP utk link wa.me/tel", () => {
   it("nomor lokal 08xxx → 62xxx (tanpa +)", () => {
@@ -24,11 +24,6 @@ describe("konstanta data Pojok Baca — bentuk & default placeholder", () => {
     const hari = JADWAL_HARI.map((j) => j.hari);
     expect(hari).toContain("Jumat");
     expect(hari).toContain("Sabtu");
-  });
-
-  it("LINK_BPJS, LINK_DRIVE default kosong (placeholder — belum diisi petugas)", () => {
-    expect(LINK_BPJS).toBe("");
-    expect(LINK_DRIVE).toBe("");
   });
 
   it("URL_APLIKASI menunjuk domain Vercel yang live (https)", () => {

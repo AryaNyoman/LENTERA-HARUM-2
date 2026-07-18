@@ -36,7 +36,14 @@ function KartuStat({
 export default async function DashboardKader() {
   const user = await wajibUser("KADER", "ADMIN");
   const anak = await ambilAnakBinaan(user);
-  const cache = await db.cacheDashboard.findFirst({ orderBy: { sinkronPada: "desc" } });
+  // Waktu tarikan SIMPUS terakhir = baris CACHE sinkron saja (kunci "puskesmas" /
+  // "kelurahan:*" / "posyandu:*"). Tabel yang sama juga menyimpan baris pengaturan
+  // (kunci "pengaturan:*", lihat src/lib/pengaturan.ts) yang BUKAN penanda tarikan —
+  // tanpa saringan ini, admin menyimpan link Pojok Baca ikut menggeser waktu tarikan.
+  const cache = await db.cacheDashboard.findFirst({
+    where: { OR: [{ kunci: "puskesmas" }, { kunci: { startsWith: "kelurahan:" } }, { kunci: { startsWith: "posyandu:" } }] },
+    orderBy: { sinkronPada: "desc" },
+  });
   const ids = await binaanIds(user);
   const posyandu = await db.posyandu.findMany({
     where: { id: { in: ids }, aktif: true },

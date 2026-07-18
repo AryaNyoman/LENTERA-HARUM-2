@@ -1,14 +1,17 @@
 /* Pojok Baca Imun (kader/ortu) — 4 blok: jadwal hari imunisasi, QR pendaftaran
- * BPJS, kontak petugas & kader, materi imunisasi. Data statis di src/lib/pojok-baca.ts;
- * kontak petugas/kader diambil dari User.noHp di database (diisi admin di halaman
- * Admin) — yang belum diisi pemilik tampil sebagai kartu "menunggu diisi petugas".
- * QR pakai lib `qrcode` yang sama dgn halaman QR klaim kader (server component). */
+ * BPJS, kontak petugas & kader, materi imunisasi. Jadwal hari = data statis di
+ * src/lib/pojok-baca.ts; link BPJS/Drive = pengaturan admin (src/lib/pengaturan.ts,
+ * ambilPengaturan). Kontak petugas/kader diambil dari User.noHp di database (diisi
+ * admin di halaman Admin) — yang belum diisi pemilik tampil sebagai kartu "menunggu
+ * diisi petugas". QR pakai lib `qrcode` yang sama dgn halaman QR klaim kader (server
+ * component). */
 /* eslint-disable @next/next/no-img-element */
 
 import QRCode from "qrcode";
 import { db } from "@/lib/db";
 import { ambilUser } from "@/lib/sesi";
-import { JADWAL_HARI, LINK_BPJS, LINK_DRIVE, nomorInternasional } from "@/lib/pojok-baca";
+import { JADWAL_HARI, nomorInternasional } from "@/lib/pojok-baca";
+import { ambilPengaturan } from "@/lib/pengaturan";
 
 function Placeholder({ pesan, border }: { pesan: string; border: string }) {
   return (
@@ -28,7 +31,8 @@ export default async function PojokBacaKonten({ peran = "kader" }: { peran?: "ka
   const pastel = ortu ? "var(--coral-pastel)" : "var(--teal-pastel)";
   const btn = ortu ? "btn3d-coral" : "btn3d-teal";
 
-  const qrBpjs = LINK_BPJS ? await QRCode.toDataURL(LINK_BPJS, { margin: 1, width: 240 }) : "";
+  const pengaturan = await ambilPengaturan();
+  const qrBpjs = pengaturan.linkBpjs ? await QRCode.toDataURL(pengaturan.linkBpjs, { margin: 1, width: 240 }) : "";
 
   // Kontak petugas (ADMIN) & kader — diambil dari User.noHp, ADMIN dulu lalu KADER by nama
   // (peran "ADMIN" < "KADER" alfabetis, orderBy peran+nama sudah menghasilkan urutan itu).
@@ -38,19 +42,28 @@ export default async function PojokBacaKonten({ peran = "kader" }: { peran?: "ka
     orderBy: [{ peran: "asc" }, { nama: "asc" }],
   });
 
-  // Sisi ortu: saring KADER ke kelurahan ortu (ADMIN selalu tampil). Fallback ke semua
-  // kader bila ortu belum punya kelurahan ATAU hasil saring kosong — jangan sampai kosong.
+  // Sisi ortu: saring KADER ke POSYANDU anak yang diklaim ortu (bukan kelurahan — dua
+  // posyandu bisa sekelurahan tapi beda kader). TANPA fallback tampilkan-semua: ortu
+  // tanpa anak terklaim (atau anaknya di posyandu tanpa kader ber-nomor) hanya melihat
+  // ADMIN. Sisi kader tidak disaring (lihat `kontak = petugas` di atas, tak diubah di sini).
   let kontak = petugas;
   if (ortu) {
     const sesi = await ambilUser();
-    const akun = sesi ? await db.user.findUnique({ where: { id: sesi.id }, select: { kelurahanId: true } }) : null;
-    const kelurahanId = akun?.kelurahanId ?? null;
-    if (kelurahanId != null) {
-      const disaring = petugas.filter(
-        (p) => p.peran === "ADMIN" || p.binaan.some((b) => b.posyandu.kelurahanId === kelurahanId),
-      );
-      if (disaring.length > 0) kontak = disaring;
-    }
+    const klaim = sesi
+      ? await db.klaimAnak.findMany({
+          where: { userId: sesi.id },
+          select: {
+            anakSimpus: { select: { posyanduId: true } },
+            anakBaru: { select: { posyanduId: true } },
+          },
+        })
+      : [];
+    const posyanduIds = new Set(
+      klaim.map((k) => k.anakSimpus?.posyanduId ?? k.anakBaru?.posyanduId).filter((id): id is number => id != null),
+    );
+    kontak = petugas.filter(
+      (p) => p.peran === "ADMIN" || p.binaan.some((b) => posyanduIds.has(b.posyanduId)),
+    );
   }
 
   return (
@@ -137,9 +150,9 @@ export default async function PojokBacaKonten({ peran = "kader" }: { peran?: "ka
       <section className="pop pop-3 rounded-[22px] border-2 bg-[var(--kartu)] p-4" style={{ borderColor: kartuBorder }}>
         <h2 className="font-judul text-sm font-bold" style={{ color: aksen }}>📚 Materi Imunisasi</h2>
         <div className="mt-2.5">
-          {LINK_DRIVE ? (
+          {pengaturan.linkDrive ? (
             <a
-              href={LINK_DRIVE}
+              href={pengaturan.linkDrive}
               target="_blank"
               rel="noopener noreferrer"
               className={`btn3d ${btn} flex h-[48px] w-full items-center justify-center text-sm`}

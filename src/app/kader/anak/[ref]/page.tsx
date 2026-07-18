@@ -9,8 +9,7 @@ import {
   adaDosis, dosisTakBerlaku, lengkap, SYARAT_IDL, SYARAT_IBL,
 } from "@/lib/vaksin";
 import { batalkanSetor, hapusAnakBaru, verifikasiAnak } from "@/lib/anak-actions";
-import { daftarCentang, verifikasiCentang } from "@/lib/centang-actions";
-import TumbuhBagian from "@/components/tumbuh-bagian";
+import { daftarCentang } from "@/lib/centang-actions";
 
 /** Tanggal + label merek utk satu slot (memeriksa varian). */
 function isiSlot(vaksin: Record<string, string>, kode: string): { tgl: string; merek?: string } | null {
@@ -58,7 +57,6 @@ export default async function DetailAnak({
   const ibl = lengkap(anak.isi.vaksin, SYARAT_IBL);
   const centang = await daftarCentang(anak.ref);
   const centangMap = new Map(centang.map((c) => [c.vaksinKode, c]));
-  const menunggu = centang.filter((c) => !c.verified);
   const belumVerifOrtu = anak.olehOrtu && !anak.terverifikasi;
 
   const relevan = DOSIS_REGISTRY.filter((d) => !dosisTakBerlaku(d.kode, anak.isi.vaksin));
@@ -301,53 +299,6 @@ export default async function DetailAnak({
         <p className="mt-2 text-[10.5px] font-semibold leading-relaxed text-[var(--abu)]">
           PCV &amp; Rotavirus tetap dicatat namun tidak dihitung ke IDL (definisi 2026).
         </p>
-
-        {menunggu.length > 0 && (
-          <section className="pop relative mt-5 rounded-[22px] border-2 bg-[var(--kartu)] p-4" style={{ borderColor: "var(--verif-garis)" }}>
-            <span
-              className="font-judul absolute -top-[11px] left-3.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
-              style={{ background: "var(--verif)", color: "var(--verif-pekat)", transform: "rotate(-1.5deg)", animation: "wiggle 2.4s ease-in-out infinite" }}
-            >
-              perlu dicek!
-            </span>
-            <p className="font-judul mt-1 text-sm font-bold" style={{ color: "var(--verif-teks)" }}>
-              Centang orang tua — menunggu verifikasi ({menunggu.length})
-            </p>
-            <p className="mt-0.5 text-[10.5px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
-              Ortu menandai dosis ini diberikan di faskes lain. Cocokkan dengan buku KIA/kartu, lalu verifikasi atau tolak.
-            </p>
-            <div className="mt-2 space-y-2">
-              {menunggu.map((c) => (
-                <div key={c.id} className="flex flex-wrap items-center gap-2.5 rounded-2xl px-3 py-2.5" style={{ background: "var(--verif-muda)" }}>
-                  <p className="min-w-[130px] flex-1 text-[12.5px] font-bold" style={{ color: "var(--verif-pekat)" }}>
-                    {c.vaksinKode} · {fmtTglId(c.tgl)}
-                    {c.lokasi && (
-                      <span className="block text-[10.5px] font-semibold" style={{ color: "var(--verif-teks)" }}>
-                        di {c.lokasi}
-                      </span>
-                    )}
-                  </p>
-                  <form action={verifikasiCentang}>
-                    <input type="hidden" name="id" value={c.id} />
-                    <input type="hidden" name="aksi" value="terima" />
-                    <button className="btn3d btn3d-teal h-[38px] rounded-xl px-3.5 text-xs" style={{ boxShadow: "0 3px 0 var(--teal-tua)" }}>
-                      ✓ Verifikasi
-                    </button>
-                  </form>
-                  <form action={verifikasiCentang}>
-                    <input type="hidden" name="id" value={c.id} />
-                    <input type="hidden" name="aksi" value="tolak" />
-                    <button className="btn-garis h-[38px] rounded-xl border-2 border-[var(--merah-border)] px-3.5 text-xs text-[var(--merah)]">
-                      Tolak
-                    </button>
-                  </form>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        <TumbuhBagian refAnak={anak.ref} jk={anak.isi.jk} balik={`/kader/anak/${anak.ref}`} />
       </div>
     </main>
   );

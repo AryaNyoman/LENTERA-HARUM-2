@@ -6,6 +6,7 @@ import { segel, buka, type IsiAnak } from "@/lib/brankas";
 import { wajibUser } from "@/lib/sesi";
 import { binaanIds } from "@/lib/anak";
 import { DOSIS_REGISTRY, VARIAN_MEREK, namaKode, validasiDosis } from "@/lib/vaksin";
+import { galatDosisTerkunci } from "@/lib/kunci-dosis";
 
 /** Semua kode input dosis yang sah (kode slot + seluruh varian merek). */
 const KODE_SAH = new Set<string>([
@@ -14,17 +15,25 @@ const KODE_SAH = new Set<string>([
 ]);
 
 function galatKe(url: string, pesan: string): never {
-  redirect(`${url}?galat=${encodeURIComponent(pesan)}`);
+  // `url` bisa sudah membawa query (mis. "/kader/anak-baru?ref=b:1") — sambung dgn "&"
+  // supaya param ref tidak rusak (dulu "?ref=b:1?galat=..." → edit jatuh ke mode tambah).
+  redirect(`${url}${url.includes("?") ? "&" : "?"}galat=${encodeURIComponent(pesan)}`);
 }
 
 /** Baca + validasi field anak dari FormData (dipakai form kader & ortu). Dosis: name
  *  "vaksin__<KODE>". Melempar redirect ke `balik` bila ada input tidak valid.
  *  `vaksinLama` (mode edit) = dosis tersimpan: nilai yang tak berubah lolos tanpa
- *  cek aturan ulang — lihat validasiDosis. */
+ *  cek aturan ulang — lihat validasiDosis.
+ *  `bolehUbahVaksin` (keputusan pemilik 18 Jul 2026 — kunci dosis): gerbang SERVER,
+ *  bukan hiasan — disabled di HTML cuma kosmetik. false → kader/ortu, TIDAK peduli
+ *  input HTML-nya disabled atau ditamper (lihat galatDosisTerkunci); dosis akhir yang
+ *  disimpan SELALU `vaksinLama` (data tak pernah berubah lewat form ini). true → hanya
+ *  admin lewat halaman kader (jalur admin W2 via /admin/vaksin TIDAK lewat fungsi ini). */
 function bacaFormAnak(
   formData: FormData,
   balik: string,
   vaksinLama: Record<string, string> = {},
+  bolehUbahVaksin: boolean = false,
 ): { isi: IsiAnak; posyanduId: number } {
   const nama = String(formData.get("nama") ?? "").trim();
   const tglLahir = String(formData.get("tglLahir") ?? "").trim();
@@ -54,12 +63,20 @@ function bacaFormAnak(
     vaksin[kode] = tgl;
   }
 
-  // urutan seri & jendela usia (min/max + interval antar dosis) — dicek setelah semua
-  // dosis submit ini terkumpul, supaya interval antar-input dalam satu submit ikut tervalidasi
-  const galatDosis = validasiDosis(vaksin, tglLahir, vaksinLama);
-  if (galatDosis) galatKe(balik, galatDosis);
+  if (!bolehUbahVaksin) {
+    // kunci dosis: kader/ortu tak boleh isi/ubah tanggal vaksin — tolak bila ada kode yg
+    // benar-benar ikut ter-submit dgn nilai beda dari vaksinLama (field disabled normal
+    // tak pernah ter-submit; ini menjaring tamper). Nilai akhir SELALU vaksinLama.
+    const galatKunci = galatDosisTerkunci(vaksin, vaksinLama);
+    if (galatKunci) galatKe(balik, galatKunci);
+  } else {
+    // urutan seri & jendela usia (min/max + interval antar dosis) — dicek setelah semua
+    // dosis submit ini terkumpul, supaya interval antar-input dalam satu submit ikut tervalidasi
+    const galatDosis = validasiDosis(vaksin, tglLahir, vaksinLama);
+    if (galatDosis) galatKe(balik, galatDosis);
+  }
 
-  return { isi: { nama, tglLahir, jk, namaOrtu, nik, noHp, alamat, rtRw, vaksin }, posyanduId };
+  return { isi: { nama, tglLahir, jk, namaOrtu, nik, noHp, alamat, rtRw, vaksin: bolehUbahVaksin ? vaksin : vaksinLama }, posyanduId };
 }
 
 /** Simpan (buat/edit) anak baru dari form kader. Dosis: input name "vaksin__<KODE>". */
@@ -84,7 +101,9 @@ export async function simpanAnakBaru(formData: FormData): Promise<void> {
     }
   }
 
-  const { isi, posyanduId } = bacaFormAnak(formData, balik, vaksinLama);
+  // kunci dosis (keputusan pemilik 18 Jul 2026): hanya ADMIN boleh ubah tanggal vaksin
+  // lewat halaman kader ini — KADER terkunci sepenuhnya (gerbang server, lihat bacaFormAnak).
+  const { isi, posyanduId } = bacaFormAnak(formData, balik, vaksinLama, user.peran === "ADMIN");
   if (!ids.includes(posyanduId)) galatKe(balik, "Posyandu di luar binaan Anda.");
   const tersegel = segel(isi);
 
@@ -124,7 +143,8 @@ export async function simpanAnakOrtu(formData: FormData): Promise<void> {
     }
   }
 
-  const { isi, posyanduId } = bacaFormAnak(formData, balik, vaksinLama);
+  // kunci dosis (keputusan pemilik 18 Jul 2026): ortu tak pernah boleh ubah tanggal vaksin.
+  const { isi, posyanduId } = bacaFormAnak(formData, balik, vaksinLama, false);
 
   const pos = await db.posyandu.findUnique({ where: { id: posyanduId } });
   if (!pos) galatKe(balik, "Pilih posyandu.");

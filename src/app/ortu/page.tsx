@@ -44,7 +44,14 @@ export default async function DashboardOrtu() {
   const user = await wajibUser("ORTU", "ADMIN");
   const anakku = await anakKlaim(user);
   const posyanduIds = [...new Set(anakku.map((a) => a.posyanduId))];
-  const cache = await db.cacheDashboard.findFirst({ orderBy: { sinkronPada: "desc" } });
+  // Waktu tarikan SIMPUS terakhir = baris CACHE sinkron saja (kunci "puskesmas" /
+  // "kelurahan:*" / "posyandu:*"). Tabel yang sama juga menyimpan baris pengaturan
+  // (kunci "pengaturan:*", lihat src/lib/pengaturan.ts) yang BUKAN penanda tarikan —
+  // tanpa saringan ini, admin menyimpan link Pojok Baca ikut menggeser waktu tarikan.
+  const cache = await db.cacheDashboard.findFirst({
+    where: { OR: [{ kunci: "puskesmas" }, { kunci: { startsWith: "kelurahan:" } }, { kunci: { startsWith: "posyandu:" } }] },
+    orderBy: { sinkronPada: "desc" },
+  });
 
   const statistik: { label: string; kelurahan: string; total: number; bayi: number; baduta: number; idl: number }[] = [];
   for (const pid of posyanduIds) {

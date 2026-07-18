@@ -18,12 +18,15 @@ const JADWAL = [
   { usia: "18 bulan", isi: "DPT-HB-Hib Baduta (interval 12 bln dari dosis-3) + MR Baduta (interval 6 bln dari MR-1).", img: "/gambar/anak-laki.png" },
 ];
 
-/** 4 seksi wajib per vaksin, berurutan — lihat PLAN-2026-07-16-lentera-harum.md § U3. */
-const SEKSI: { kunci: keyof Omit<PanduanVaksin, "id" | "nama">; label: string }[] = [
-  { kunci: "manfaat", label: "1) Manfaat & Tujuan Imunisasi" },
-  { kunci: "pasca", label: "2) Edukasi Pasca Imunisasi" },
-  { kunci: "batasUsia", label: "3) Batas Usia Pemberian" },
-  { kunci: "kejar", label: "4) Panduan Kejar Imunisasi" },
+/** 4 seksi wajib per vaksin, berurutan — lihat PLAN-2026-07-16-lentera-harum.md § U3.
+ *  Tiap seksi = kartu mini warna lembut tetap (semantik kategori, TIDAK ikut aksen peran) —
+ *  lihat PLAN-2026-07-18-kunci-vaksin-admin.md § W3. Pasangan bg/fg pakai token existing,
+ *  konvensi sama dgn chip info lain di app (mis. tumbuh-bagian.tsx ChipStatus). */
+const SEKSI: { kunci: keyof Omit<PanduanVaksin, "id" | "nama">; label: string; emoji: string; bg: string; fg: string }[] = [
+  { kunci: "manfaat", label: "1) Manfaat & Tujuan Imunisasi", emoji: "💚", bg: "var(--teal-muda)", fg: "var(--teal-gelap)" },
+  { kunci: "pasca", label: "2) Edukasi Pasca Imunisasi", emoji: "🌡️", bg: "var(--kuning-muda)", fg: "var(--kuning-teks)" },
+  { kunci: "batasUsia", label: "3) Batas Usia Pemberian", emoji: "📅", bg: "var(--coral-muda)", fg: "var(--coral-gelap)" },
+  { kunci: "kejar", label: "4) Panduan Kejar Imunisasi", emoji: "🏃", bg: "var(--teal-pastel)", fg: "var(--teal-gelap)" },
 ];
 
 export default function PanduanKonten({ peran = "kader" }: { peran?: "kader" | "ortu" }) {
@@ -82,11 +85,13 @@ export default function PanduanKonten({ peran = "kader" }: { peran?: "kader" | "
               <span className="shrink-0 text-[11px] font-semibold text-[var(--abu)] group-open:hidden">▾ buka</span>
               <span className="hidden shrink-0 text-[11px] font-semibold text-[var(--abu)] group-open:inline">▴ tutup</span>
             </summary>
-            <div className="mt-2.5 flex flex-col gap-2.5 border-t-2 pt-2.5" style={{ borderColor: kartuBorder }}>
+            <div className="mt-2.5 flex flex-col gap-2 border-t-2 pt-2.5" style={{ borderColor: kartuBorder }}>
               {SEKSI.map((s) => (
-                <div key={s.kunci}>
-                  <p className="font-judul text-[10.5px] font-bold uppercase tracking-wide" style={{ color: aksen }}>{s.label}</p>
-                  <p className="mt-0.5 text-[11px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">{v[s.kunci]}</p>
+                <div key={s.kunci} className="rounded-2xl px-3 py-2.5" style={{ background: s.bg }}>
+                  <p className="font-judul text-[10.5px] font-bold uppercase tracking-wide" style={{ color: s.fg }}>
+                    {s.emoji} {s.label}
+                  </p>
+                  <p className="mt-1 text-[11px] font-semibold leading-relaxed" style={{ color: s.fg }}>{v[s.kunci]}</p>
                 </div>
               ))}
             </div>

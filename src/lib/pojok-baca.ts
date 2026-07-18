@@ -1,10 +1,9 @@
-/** Data Pojok Baca Imun — jadwal hari, link pendaftaran BPJS (utk QR), link
- *  materi, URL aplikasi (utk QR "Bagikan aplikasi"). String kosong ("") =
- *  data belum tersedia dari pemilik → UI menampilkan penanda "menunggu diisi
- *  petugas". Edit langsung di file ini saat data resmi tersedia.
- *  Kontak petugas/kader TIDAK lagi di sini — diambil dari User.noHp di
- *  database (diisi admin di halaman Admin), lihat pojok-baca-konten.tsx.
- *  Lihat PLAN-2026-07-16-lentera-harum.md § "Ditunda". */
+/** Data Pojok Baca Imun — jadwal hari & URL aplikasi (utk QR "Bagikan aplikasi").
+ *  Kontak petugas/kader TIDAK di sini — diambil dari User.noHp di database (diisi
+ *  admin di halaman Admin), lihat pojok-baca-konten.tsx. Link BPJS & Drive JUGA
+ *  TIDAK lagi di sini (dulu konstanta statis) — sekarang dikelola admin & tersimpan
+ *  di DB, lihat src/lib/pengaturan.ts (ambilPengaturan, kunci "pengaturan:pojok-baca").
+ *  Lihat PLAN-2026-07-16-lentera-harum.md § "Ditunda" & PLAN-2026-07-18(c) keputusan #6. */
 
 export interface JadwalHari {
   hari: string;
@@ -16,12 +15,6 @@ export const JADWAL_HARI: JadwalHari[] = [
   { hari: "Jumat", isi: "BCG & Polio 1" },
   { hari: "Sabtu", isi: "Semua jenis vaksin" },
 ];
-
-/** Link pendaftaran online BPJS — dipakai jadi QR. Kosong = belum ada dari pemilik. */
-export const LINK_BPJS = "";
-
-/** Link Google Drive materi imunisasi. Kosong = belum ada dari pemilik. */
-export const LINK_DRIVE = "";
 
 /** URL aplikasi web — dipakai QR "Bagikan aplikasi" di halaman Admin. Satu tempat,
  *  gampang diubah kalau nanti pakai domain sendiri. */

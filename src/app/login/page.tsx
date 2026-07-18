@@ -33,11 +33,11 @@ export default async function LoginPage({
         />
         <div className="pop relative">
           <img
-            src="/gambar/logo-lentera-harum.png"
+            src="/gambar/logo-lockup-ringkas.png"
             alt="Lentera Harum"
-            width={220}
-            height={220}
-            className="mx-auto mb-2 h-auto w-full max-w-[220px] rounded-3xl shadow-[0_10px_24px_rgba(23,79,71,.28)]"
+            width={230}
+            height={218}
+            className="mx-auto mb-2 h-auto w-full max-w-[230px] rounded-3xl shadow-[0_10px_24px_rgba(23,79,71,.28)]"
           />
           <h1 className="font-judul text-2xl font-bold leading-tight">Halo! Selamat datang 👋</h1>
           <p className="mt-1 text-[12.5px] font-semibold text-white/90">
