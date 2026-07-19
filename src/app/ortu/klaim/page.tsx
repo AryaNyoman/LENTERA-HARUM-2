@@ -6,10 +6,45 @@ import { pakaiKode } from "@/lib/klaim-actions";
 export default async function KlaimPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kode?: string; galat?: string }>;
+  searchParams: Promise<{ kode?: string; galat?: string; mismatch?: string; posyandu?: string; kelX?: string; kelY?: string }>;
 }) {
   await wajibUser("ORTU", "ADMIN");
-  const { kode, galat } = await searchParams;
+  const { kode, galat, mismatch, posyandu, kelX, kelY } = await searchParams;
+
+  if (mismatch === "1") {
+    return (
+      <main>
+        <KepalaHalaman judul="Hubungkan Anak 🔗" sub="dari menu Anakku" balik="/ortu/anakku" peran="ortu" />
+        <div className="mx-auto max-w-md px-4 pt-4">
+          <div className="pop rounded-[26px] border-2 border-[var(--merah-border)] bg-[var(--merah-muda)] px-5 py-6">
+            <p className="font-judul text-center text-[28px]">⚠️</p>
+            <p className="font-judul mt-1 text-center text-[15px] font-bold text-[var(--merah-teks)]">
+              Lokasi tidak cocok
+            </p>
+            <p className="mt-2.5 text-left text-[11.5px] font-semibold leading-relaxed text-[var(--merah-teks)]">
+              Akun Anda terdaftar di kelurahan <b>{kelX || "—"}</b>, sedangkan anak ini terdaftar di posyandu{" "}
+              <b>{posyandu || "—"}</b> (kelurahan <b>{kelY || "—"}</b>). Kemungkinan: (1) Anda keliru memilih
+              kelurahan saat daftar, atau (2) kader memberikan QR yang salah. Periksa dulu dengan kader Anda.
+            </p>
+            <form action={pakaiKode} className="mt-3.5 flex flex-col gap-2">
+              <input type="hidden" name="kode" value={kode ?? ""} />
+              <input type="hidden" name="konfirmasi" value="1" />
+              <button className="btn3d btn3d-coral h-[50px] rounded-[16px] text-sm" style={{ boxShadow: "0 5px 0 var(--coral-tua)" }}>
+                Tetap hubungkan
+              </button>
+            </form>
+            <a
+              href="/ortu/klaim"
+              className="btn-garis mt-2 flex h-[46px] items-center justify-center rounded-[16px] border-2 text-sm font-bold"
+              style={{ borderColor: "var(--merah-border)", color: "var(--merah-teks)" }}
+            >
+              Batal
+            </a>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main>

@@ -79,6 +79,49 @@ export async function daftarVaksinAdmin(posyanduId: number): Promise<AnakVaksinR
   return out;
 }
 
+export interface RingkasanVaksinAdmin {
+  /** kelurahanId → jumlah anak (AnakBaru anakSimpusId:null) yang belum lengkap dosis relevan. */
+  perKelurahan: Record<number, number>;
+  /** posyanduId → jumlah anak belum lengkap, sama definisi. */
+  perPosyandu: Record<number, number>;
+}
+
+/** Ringkasan utk badge kuning admin/vaksin — SATU findMany lintas semua posyandu,
+ *  dekripsi & hitung "belum lengkap" (sudah < total dosis relevan) di memori
+ *  (bukan query per kelurahan/posyandu — hemat operasi DB, lihat PLAN-2026-07-18). */
+export async function ringkasanVaksinAdmin(): Promise<RingkasanVaksinAdmin> {
+  await wajibUser("ADMIN");
+  const rows = await db.anakBaru.findMany({
+    where: { anakSimpusId: null },
+    include: { posyandu: { select: { id: true, kelurahanId: true } } },
+  });
+  const perKelurahan: Record<number, number> = {};
+  const perPosyandu: Record<number, number> = {};
+  for (const a of rows) {
+    const isi = bukaAman(a);
+    if (!isi) continue;
+    const relevan = DOSIS_REGISTRY.filter((d) => !dosisTakBerlaku(d.kode, isi.vaksin));
+    const sudah = relevan.filter((d) => adaDosis(isi.vaksin, d.kode)).length;
+    if (sudah >= relevan.length) continue; // sudah lengkap — tak masuk hitungan badge
+    perKelurahan[a.posyandu.kelurahanId] = (perKelurahan[a.posyandu.kelurahanId] ?? 0) + 1;
+    perPosyandu[a.posyandu.id] = (perPosyandu[a.posyandu.id] ?? 0) + 1;
+  }
+  return { perKelurahan, perPosyandu };
+}
+
+/** Jumlah anak yang akan ikut terunduh oleh /kader/export bila admin export sekarang —
+ *  WHERE PERSIS disalin dari src/app/kader/export/route.ts (admin = semua posyandu,
+ *  jadi tanpa filter posyanduId sudah setara dgn binaanIds(admin)). */
+export async function jumlahSiapExport(): Promise<number> {
+  await wajibUser("ADMIN");
+  return db.anakBaru.count({
+    where: {
+      status: { in: ["DRAF", "DIEKSPOR"] },
+      NOT: { olehOrtu: true, terverifikasi: false },
+    },
+  });
+}
+
 export interface AnakVaksinDetail {
   id: number;
   nama: string;

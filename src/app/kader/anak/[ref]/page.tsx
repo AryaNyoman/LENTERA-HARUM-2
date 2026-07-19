@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
+import { db } from "@/lib/db";
 import { ambilAnak, hitungUsiaBulan, labelUsia, fmtTglId } from "@/lib/anak";
 import {
   DOSIS_REGISTRY, UMUR_IDEAL, VARIAN_MEREK,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/vaksin";
 import { batalkanSetor, hapusAnakBaru, verifikasiAnak } from "@/lib/anak-actions";
 import { daftarCentang } from "@/lib/centang-actions";
+import { putusKlaimKader } from "@/lib/klaim-actions";
 
 /** Tanggal + label merek utk satu slot (memeriksa varian). */
 function isiSlot(vaksin: Record<string, string>, kode: string): { tgl: string; merek?: string } | null {
@@ -33,6 +35,31 @@ function alasanTakBerlaku(kode: string): string {
   return kode === "ROTA3" ? "Rotarix cukup 2" : "Hexa sudah mencakup";
 }
 
+/** Tombol putus tautan ortu↔anak — konfirmasi inline `<details>` (pola sama TombolHapus
+ *  admin, src/app/admin/page.tsx). Hanya menghapus baris KlaimAnak; data anak TIDAK disentuh. */
+function TombolPutusKlaim({ id, anakRef, namaOrtu }: { id: number; anakRef: string; namaOrtu: string }) {
+  return (
+    <details className="group/putus mt-1.5">
+      <summary className="cursor-pointer list-none text-[10.5px] font-bold text-[var(--merah)] [&::-webkit-details-marker]:hidden">
+        <span className="group-open/putus:hidden">🔗✂ Putuskan tautan</span>
+        <span className="hidden group-open/putus:inline">▴ Batal</span>
+      </summary>
+      <div className="mt-1.5 rounded-xl bg-[var(--merah-muda)] p-2.5">
+        <p className="text-[10px] font-semibold leading-snug text-[var(--merah-teks)]">
+          Anak akan hilang dari aplikasi orang tua <b>{namaOrtu}</b>. Data anak TIDAK terhapus.
+        </p>
+        <form action={putusKlaimKader} className="mt-1.5">
+          <input type="hidden" name="id" value={id} />
+          <input type="hidden" name="ref" value={anakRef} />
+          <button className="h-8 w-full rounded-lg bg-[var(--merah)] text-[10.5px] font-bold text-white">
+            Ya, putuskan tautan
+          </button>
+        </form>
+      </div>
+    </details>
+  );
+}
+
 const CEK_HIJAU = (
   <span className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full bg-[var(--hijau)]">
     <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
@@ -44,11 +71,11 @@ export default async function DetailAnak({
   searchParams,
 }: {
   params: Promise<{ ref: string }>;
-  searchParams: Promise<{ galat?: string }>;
+  searchParams: Promise<{ galat?: string; ok?: string }>;
 }) {
   const user = await wajibUser("KADER", "ADMIN");
   const { ref } = await params;
-  const { galat } = await searchParams;
+  const { galat, ok } = await searchParams;
   const anak = await ambilAnak(decodeURIComponent(ref), user);
   if (!anak) notFound();
 
@@ -58,6 +85,11 @@ export default async function DetailAnak({
   const centang = await daftarCentang(anak.ref);
   const centangMap = new Map(centang.map((c) => [c.vaksinKode, c]));
   const belumVerifOrtu = anak.olehOrtu && !anak.terverifikasi;
+  const klaimOrtu = await db.klaimAnak.findMany({
+    where: anak.sumber === "SIMPUS" ? { anakSimpusId: anak.id } : { anakBaruId: anak.id },
+    include: { user: { select: { id: true, nama: true, noHp: true, username: true } } },
+    orderBy: { dibuatPada: "asc" },
+  });
 
   const relevan = DOSIS_REGISTRY.filter((d) => !dosisTakBerlaku(d.kode, anak.isi.vaksin));
   const nSudah = relevan.filter((d) => adaDosis(anak.isi.vaksin, d.kode)).length;
@@ -78,6 +110,9 @@ export default async function DetailAnak({
       <div className="mx-auto max-w-md px-4 pt-3.5">
         {galat && (
           <p className="mb-3 rounded-xl bg-[var(--merah-muda)] px-3 py-2 text-xs font-bold text-[var(--merah-teks)]">{galat}</p>
+        )}
+        {ok && (
+          <p className="mb-3 rounded-xl bg-[var(--hijau-muda)] px-3 py-2 text-xs font-bold text-[var(--hijau-teks)]">{ok}</p>
         )}
 
         <section
@@ -196,6 +231,23 @@ export default async function DetailAnak({
             </div>
           )}
         </section>
+
+        {klaimOrtu.length > 0 && (
+          <section className="pop pop-1 mt-4 rounded-[20px] border-2 border-[var(--garis-kader)] bg-[var(--kartu)] px-3.5 py-3">
+            <p className="font-judul mb-1.5 text-xs font-bold text-[var(--abu)]">🔗 Terhubung dengan akun orang tua</p>
+            <div className="flex flex-col gap-2">
+              {klaimOrtu.map((k) => (
+                <div key={k.id} className="rounded-xl bg-[#f7faf9] px-3 py-2">
+                  <p className="min-w-0 truncate text-[12px] font-bold text-[var(--teks-3)]">
+                    {k.user.nama}{" "}
+                    <span className="font-semibold text-[var(--abu)]">· {k.user.noHp || k.user.username}</span>
+                  </p>
+                  <TombolPutusKlaim id={k.id} anakRef={anak.ref} namaOrtu={k.user.nama} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {belumVerifOrtu && (
           <section className="pop pop-1 relative mt-5 rounded-[22px] border-2 p-4" style={{ borderColor: "var(--verif-garis)", background: "var(--verif-muda)" }}>
