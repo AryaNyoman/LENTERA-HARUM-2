@@ -37,6 +37,20 @@ export default async function AdminVaksinPage({
           Anak yang sudah masuk SIMPUS diisi lewat SIMPUS — daftar di bawah hanya anak draf/sudah disetor yang belum tercocok.
         </p>
 
+        {/* Selalu terlihat (tak bergantung posyandu terpilih) — /kader/export sudah
+            admin-compatible lewat binaanIds (ADMIN → semua posyandu), jadi tautkan langsung. */}
+        <Link
+          href="/kader/export"
+          prefetch={false}
+          className="btn3d btn3d-teal mt-3 flex h-11 items-center justify-center rounded-[14px] text-[13px]"
+          style={{ boxShadow: "0 4px 0 var(--teal-tua)" }}
+        >
+          📤 Export Semua Anak Siap Disetor
+        </Link>
+        <p className="mt-1.5 text-center text-[10px] font-semibold text-[var(--abu)]">
+          Mengekspor SEMUA posyandu (bukan cuma yang sedang dipilih), sesuai status setor terbaru.
+        </p>
+
         <p className="font-judul mt-4 text-xs font-bold text-[var(--teks-3)]">Pilih posyandu</p>
         <div className="mt-1.5 flex flex-col gap-2">
           {kelurahan.map((k) => (

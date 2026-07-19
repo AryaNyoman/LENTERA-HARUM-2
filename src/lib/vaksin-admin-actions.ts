@@ -71,6 +71,11 @@ export async function daftarVaksinAdmin(posyanduId: number): Promise<AnakVaksinR
       total: relevan.length,
     });
   }
+  // Anak yang paling belum diisi (sudah terkecil) paling atas — supaya admin lihat PR
+  // dulu. Array.prototype.sort dijamin stabil (ES2019+/Node modern), jadi anak dengan
+  // `sudah` sama tetap dalam urutan `dibuatPada desc` dari query di atas (tie-break lama
+  // dipertahankan otomatis, tanpa perlu bandingkan dibuatPada di sini).
+  out.sort((a, b) => a.sudah - b.sudah);
   return out;
 }
 

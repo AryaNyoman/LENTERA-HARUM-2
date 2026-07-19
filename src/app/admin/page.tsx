@@ -4,6 +4,7 @@ import { wajibUser } from "@/lib/sesi";
 import { db } from "@/lib/db";
 import { setAktif, hapusAkun, setNoHp } from "@/lib/akun-actions";
 import { tarikSimpus } from "@/lib/sinkron-actions";
+import { sisaBatasSinkron } from "@/lib/batas-sinkron";
 import { URL_APLIKASI } from "@/lib/pojok-baca";
 import { ambilPengaturan } from "@/lib/pengaturan";
 import { simpanPengaturanPojok } from "@/lib/pengaturan-actions";
@@ -127,7 +128,7 @@ export default async function AdminPage({
   const user = await wajibUser("ADMIN");
   const { galat, ok } = await searchParams;
 
-  const [users, kelurahan, cache, pengaturan] = await Promise.all([
+  const [users, kelurahan, cache, pengaturan, batasSinkron] = await Promise.all([
     db.user.findMany({
       orderBy: [{ peran: "asc" }, { nama: "asc" }],
       include: { binaan: { include: { posyandu: true } } },
@@ -138,6 +139,7 @@ export default async function AdminPage({
     }),
     db.cacheDashboard.findUnique({ where: { kunci: "puskesmas" } }),
     ambilPengaturan(),
+    sisaBatasSinkron(user.id),
   ]);
 
   const kader = users.filter((u) => u.peran === "KADER");
@@ -188,7 +190,7 @@ export default async function AdminPage({
               </p>
             </div>
             <form action={tarikSimpus} className="shrink-0">
-              <TombolTarik />
+              <TombolTarik terkunci={batasSinkron.terkunci} caption={batasSinkron.caption} />
             </form>
           </div>
           {!cache && (

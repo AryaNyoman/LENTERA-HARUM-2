@@ -94,6 +94,15 @@ export default async function PojokBacaKonten({ peran = "kader" }: { peran?: "ka
             <p className="mt-2 text-[11px] font-semibold leading-relaxed text-[var(--teks-sekunder)]">
               Pindai QR ini dengan kamera HP untuk mendaftar online lewat BPJS.
             </p>
+            <a
+              href={pengaturan.linkBpjs}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1.5 inline-block text-[11px] font-bold underline"
+              style={{ color: aksen }}
+            >
+              Tidak bisa scan? Klik link ini
+            </a>
           </div>
         ) : (
           <div className="mt-2.5">

@@ -37,7 +37,7 @@ export default async function LoginPage({
             alt="Lentera Harum"
             width={230}
             height={218}
-            className="mx-auto mb-2 h-auto w-full max-w-[230px] rounded-3xl shadow-[0_10px_24px_rgba(23,79,71,.28)]"
+            className="mx-auto mb-2 h-auto w-full max-w-[230px]"
           />
           <h1 className="font-judul text-2xl font-bold leading-tight">Halo! Selamat datang 👋</h1>
           <p className="mt-1 text-[12.5px] font-semibold text-white/90">
