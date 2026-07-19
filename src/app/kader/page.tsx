@@ -5,6 +5,7 @@ import { wajibUser } from "@/lib/sesi";
 import { db } from "@/lib/db";
 import { ambilAnakBinaan, binaanIds, hitungUsiaBulan, kelompokUsia } from "@/lib/anak";
 import { lengkap, SYARAT_IDL, SYARAT_IBL } from "@/lib/vaksin";
+import { formatWaktuIndo } from "@/lib/waktu";
 
 function KartuStat({
   nilai, label, img, border, warna, stiker, delay,
@@ -156,7 +157,7 @@ export default async function DashboardKader() {
           <span className="text-base">☁️</span>
           <p className="text-[11px] font-semibold leading-relaxed text-[var(--teal-tua)]">
             {cache ? (
-              <>Data statistik SIMPUS terakhir ditarik: <b>{cache.sinkronPada.toLocaleString("id-ID")}</b>. Tarikan dilakukan petugas puskesmas.</>
+              <>Data statistik SIMPUS terakhir ditarik: <b>{formatWaktuIndo(cache.sinkronPada)}</b>. Tarikan dilakukan petugas puskesmas.</>
             ) : (
               <>Data SIMPUS belum ditarik — angka dihitung dari catatan website ini dulu. Tarikan dilakukan petugas puskesmas.</>
             )}

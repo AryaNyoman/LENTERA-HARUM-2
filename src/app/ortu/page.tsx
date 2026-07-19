@@ -7,6 +7,7 @@ import { anakKlaim } from "@/lib/ortu";
 import { buka, type IsiAnak } from "@/lib/brankas";
 import { hitungUsiaBulan, kelompokUsia } from "@/lib/anak";
 import { DOSIS_REGISTRY, UMUR_IDEAL, adaDosis, dosisTakBerlaku, lengkap, SYARAT_IDL } from "@/lib/vaksin";
+import { formatWaktuIndo } from "@/lib/waktu";
 
 /** Sapaan hangat: nama panggilan (lewati partikel Bali "Ni/I" → pakai kata terakhir),
  *  fallback "Bunda/Ayah" bila nama kosong. */
@@ -217,7 +218,7 @@ export default async function DashboardOrtu() {
 
             <p className="pop pop-4 rounded-2xl bg-[var(--teal-muda)] px-3.5 py-2.5 text-[10.5px] font-semibold leading-relaxed text-[var(--teal-tua)]">
               {cache
-                ? `Data SIMPUS terakhir ditarik ${cache.sinkronPada.toLocaleString("id-ID")} 💚`
+                ? `Data SIMPUS terakhir ditarik ${formatWaktuIndo(cache.sinkronPada)} 💚`
                 : "Cakupan resmi puskesmas tampil setelah data SIMPUS ditarik petugas 💚"}
             </p>
           </div>

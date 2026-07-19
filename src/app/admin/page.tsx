@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { setAktif, hapusAkun, setNoHp } from "@/lib/akun-actions";
 import { tarikSimpus } from "@/lib/sinkron-actions";
 import { sisaBatasSinkron } from "@/lib/batas-sinkron";
+import { formatWaktuIndo } from "@/lib/waktu";
 import { URL_APLIKASI } from "@/lib/pojok-baca";
 import { ambilPengaturan } from "@/lib/pengaturan";
 import { simpanPengaturanPojok } from "@/lib/pengaturan-actions";
@@ -184,7 +185,7 @@ export default async function AdminPage({
               <p className="font-judul text-sm font-bold text-[var(--teal-gelap)]">Sinkron SIMPUS</p>
               <p className="text-[10.5px] font-semibold leading-snug text-[var(--teks-sekunder)]">
                 {cache
-                  ? `Tarikan terakhir: ${cache.sinkronPada.toLocaleString("id-ID")}.`
+                  ? `Tarikan terakhir: ${formatWaktuIndo(cache.sinkronPada)}.`
                   : "Belum pernah tarik data."}{" "}
                 Otomatis berjalan tiap minggu; bisa juga ditarik manual.
               </p>
