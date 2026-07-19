@@ -8,11 +8,11 @@ import InputSandi from "@/components/input-sandi";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ galat?: string }>;
+  searchParams: Promise<{ galat?: string; username?: string }>;
 }) {
   const user = await ambilUser();
   if (user) redirect(rumahPeran(user.peran));
-  const { galat } = await searchParams;
+  const { galat, username } = await searchParams;
 
   const inp =
     "mt-1.5 h-[50px] w-full rounded-2xl border-2 border-[var(--krem-border)] bg-[var(--krem-input)] px-4 text-[15px] font-semibold outline-none transition-colors focus:border-[var(--teal)]";
@@ -60,7 +60,13 @@ export default async function LoginPage({
           )}
           <label className="block text-[12.5px] font-extrabold text-[var(--teks-3)]">
             Username / No HP
-            <input name="username" autoComplete="username" className={inp} placeholder="kader: username · ortu: 08…" />
+            <input
+              name="username"
+              autoComplete="username"
+              defaultValue={username ?? ""}
+              className={inp}
+              placeholder="kader: username · ortu: 08…"
+            />
           </label>
           <label className="mt-3.5 block text-[12.5px] font-extrabold text-[var(--teks-3)]">
             Sandi

@@ -22,7 +22,10 @@ async function catat(userId: number | null, aksi: string, detail = "") {
 export async function masuk(formData: FormData): Promise<void> {
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const sandi = String(formData.get("sandi") ?? "");
-  if (!username || !sandi) redirect("/login?galat=Isi+username+dan+sandi");
+  // Gagal login: username diketik ulang di form (bukan sandi — jangan pernah ikut
+  // dikembalikan lewat URL) supaya pengguna tak perlu menuliskannya lagi dari awal.
+  const uq = username ? `&username=${encodeURIComponent(username)}` : "";
+  if (!username || !sandi) redirect(`/login?galat=Isi+username+dan+sandi${uq}`);
 
   // ortu login pakai No HP — coba bentuk ternormalisasi juga
   const user =
@@ -30,9 +33,9 @@ export async function masuk(formData: FormData): Promise<void> {
     (await db.user.findUnique({ where: { username: normHp(username) } }));
 
   if (!user || !(await bcrypt.compare(sandi, user.sandiHash))) {
-    redirect("/login?galat=Username+atau+sandi+salah");
+    redirect(`/login?galat=Username+atau+sandi+salah${uq}`);
   }
-  if (!user.aktif) redirect("/login?galat=Akun+dinonaktifkan.+Hubungi+admin");
+  if (!user.aktif) redirect(`/login?galat=Akun+dinonaktifkan.+Hubungi+admin${uq}`);
 
   await buatSesi(user.id);
   await catat(user.id, "LOGIN");
