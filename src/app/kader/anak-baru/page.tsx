@@ -47,7 +47,7 @@ export default async function AnakBaruPage({
           idEdit={idEdit}
           awal={awal ?? undefined}
           galat={galat}
-          kunciDosis={user.peran !== "ADMIN"}
+          kunciDosis={false} // keputusan pemilik 19 Jul: kader boleh isi tanggal lagi (ortu tetap terkunci)
         />
       </div>
     </main>

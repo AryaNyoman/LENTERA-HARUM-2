@@ -101,9 +101,10 @@ export async function simpanAnakBaru(formData: FormData): Promise<void> {
     }
   }
 
-  // kunci dosis (keputusan pemilik 18 Jul 2026): hanya ADMIN boleh ubah tanggal vaksin
-  // lewat halaman kader ini — KADER terkunci sepenuhnya (gerbang server, lihat bacaFormAnak).
-  const { isi, posyanduId } = bacaFormAnak(formData, balik, vaksinLama, user.peran === "ADMIN");
+  // Revisi keputusan pemilik 19 Jul 2026: KADER kembali boleh mengisi/mengubah tanggal
+  // vaksin di sini (admin tetap bisa, sbg verifikasi akhir sebelum export). Halaman ini
+  // dijaga wajibUser("KADER","ADMIN") — ORTU tetap terkunci lewat simpanAnakOrtu (false).
+  const { isi, posyanduId } = bacaFormAnak(formData, balik, vaksinLama, true);
   if (!ids.includes(posyanduId)) galatKe(balik, "Posyandu di luar binaan Anda.");
   const tersegel = segel(isi);
 
