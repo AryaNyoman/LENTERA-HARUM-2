@@ -3,7 +3,7 @@ import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
 import { db } from "@/lib/db";
 import type { AnakView } from "@/lib/anak";
-import { ambilAnakBinaan, binaanIds, fmtTglId } from "@/lib/anak";
+import { ambilAnakBinaan, binaanIds, fmtTglId, hitungUsiaBulan, kelompokUsia } from "@/lib/anak";
 import type { BucketSweeping, DosisSasaran, JadwalRingkas } from "@/lib/sasaran";
 import { kelompokkanJadwal, perluSasaran, dosisJatuhTempo } from "@/lib/sasaran";
 import { nomorInternasional } from "@/lib/pojok-baca";
@@ -14,6 +14,13 @@ const URUTAN_BUCKET: { kunci: BucketSweeping; judul: string; emoji: string; pesa
   { kunci: "kemarin", judul: "Kemarin (Susulan)", emoji: "↩️", pesanKosong: "Tidak ada jadwal posyandu kemarin." },
 ];
 
+const FILTER = [
+  { u: "", label: "Semua" },
+  { u: "0-11", label: "Bayi 0–11" },
+  { u: "12-24", label: "Baduta" },
+  { u: ">24", label: ">24 bln" },
+] as const;
+
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
@@ -22,8 +29,13 @@ function labelPosyandu(p: { nama: string; namaPosyandu: string }): string {
   return p.namaPosyandu ? `${p.nama} (${p.namaPosyandu})` : p.nama;
 }
 
-export default async function Sweeping() {
+export default async function Sweeping({
+  searchParams,
+}: {
+  searchParams: Promise<{ u?: string }>;
+}) {
   const user = await wajibUser("KADER", "ADMIN");
+  const { u = "" } = await searchParams;
   const ids = await binaanIds(user);
 
   const [semuaAnak, jadwalRows, daftarPosyandu] = await Promise.all([
@@ -35,6 +47,7 @@ export default async function Sweeping() {
   const petaPosyandu = new Map(daftarPosyandu.map((p) => [p.id, p]));
 
   const now = new Date();
+  const anak = u ? semuaAnak.filter((a) => kelompokUsia(hitungUsiaBulan(a.isi.tglLahir, now)) === u) : semuaAnak;
   const bucket = kelompokkanJadwal(jadwalRows, now);
 
   // Posyandu binaan yang sama sekali belum punya baris jadwal utk bulan berjalan (now) —
@@ -53,7 +66,7 @@ export default async function Sweeping() {
   const bangunKartu = (baris: JadwalRingkas[]) =>
     baris.map((j) => {
       const tglSesiISO = `${j.tahun}-${pad2(j.bulan)}-${pad2(j.tanggal)}`;
-      const anakDue = semuaAnak
+      const anakDue = anak
         .filter((a) => a.posyanduId === j.posyanduId && perluSasaran(a.isi.vaksin, a.isi.tglLahir, tglSesiISO))
         .map((a) => ({ a, dosis: dosisJatuhTempo(a.isi.vaksin, a.isi.tglLahir, tglSesiISO) }));
       return { j, tglSesiISO, anakDue };
@@ -112,8 +125,30 @@ export default async function Sweeping() {
       />
 
       <div className="mx-auto max-w-md px-4 pt-3.5">
-        {kartuPerBucket.map(({ kunci, judul, emoji, pesanKosong, kartu }, i) => (
-          <section key={kunci} className={i > 0 ? "mt-4" : ""}>
+        <div className="pop flex gap-2 overflow-x-auto pb-1">
+          {FILTER.map((f) => {
+            const aktif = u === f.u;
+            const href = `/kader/sweeping?${new URLSearchParams(f.u ? { u: f.u } : {})}`;
+            return (
+              <Link
+                key={f.label}
+                href={href}
+                prefetch={false}
+                className="font-judul flex h-[34px] shrink-0 items-center rounded-full px-4 text-xs font-bold"
+                style={
+                  aktif
+                    ? { background: "var(--teal)", color: "#fff", boxShadow: "0 3px 0 var(--teal-tua)" }
+                    : { background: "var(--kartu)", border: "2px solid #e2ece7", color: "var(--teks-sekunder)" }
+                }
+              >
+                {f.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        {kartuPerBucket.map(({ kunci, judul, emoji, pesanKosong, kartu }) => (
+          <section key={kunci} className="mt-4">
             <p className="font-judul mb-1.5 text-[11px] font-bold tracking-wide text-[var(--teal-gelap)]">
               {emoji} {judul.toUpperCase()}
             </p>
