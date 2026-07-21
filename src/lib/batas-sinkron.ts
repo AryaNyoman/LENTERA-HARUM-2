@@ -16,8 +16,6 @@ const JENDELA_24_JAM_MS = 24 * JAM_MS;
 const JENDELA_120_JAM_MS = 120 * JAM_MS;
 const MAKS_24_JAM = 1;
 const MAKS_120_JAM = 3;
-/** SEMENTARA — lihat catatan di cekBatasSinkron. Set false / hapus setelah dipakai sekali. */
-const LEWATI_SEMENTARA = true;
 
 /** Aksi log yg dihitung sbg "percobaan" — sukses MAUPUN gagal, keduanya tetap membebani
  *  koneksi ke Neon SIMPUS. Diekspor supaya sinkron-actions.ts pakai daftar yg sama persis. */
@@ -44,9 +42,6 @@ export function cekBatasSinkron(
   waktuSebelumnya: Date[],
   sekarang: Date,
 ): { boleh: true } | { boleh: false; alasan: string } {
-  // SEMENTARA (21 Jul, izin eksplisit pemilik): lewati kuota sekali utk verifikasi
-  // Wave 3 (tabel JadwalPosyandu baru dibuat, belum pernah ditarik). REVERT setelah dipakai.
-  if (LEWATI_SEMENTARA) return { boleh: true };
   const w24 = dalamJendela(waktuSebelumnya, sekarang, JENDELA_24_JAM_MS);
   if (w24.length >= MAKS_24_JAM) {
     const lagi = bolehLagiPada(w24, MAKS_24_JAM, JENDELA_24_JAM_MS);
