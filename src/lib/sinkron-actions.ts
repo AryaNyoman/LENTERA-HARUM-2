@@ -29,7 +29,7 @@ export async function tarikSimpus(): Promise<void> {
   let pesan: string;
   try {
     const h = await jalankanSinkron();
-    pesan = `Sinkron selesai: ${h.kelurahan} kelurahan · ${h.posyandu} posyandu · ${h.anak} anak` +
+    pesan = `Sinkron selesai: ${h.kelurahan} kelurahan · ${h.posyandu} posyandu · ${h.anak} anak · ${h.jadwal} jadwal` +
       (h.dicocokkan ? ` · ${h.dicocokkan} anak baru dicocokkan` : "") +
       (h.gagalDekripsi ? ` · ${h.gagalDekripsi} gagal dekripsi` : "");
     await db.logAktivitas.create({ data: { userId: user.id, aksi: "SINKRON_SIMPUS", detail: pesan } });

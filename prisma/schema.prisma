@@ -38,8 +38,26 @@ model Posyandu {
   anakSimpus   AnakSimpus[]
   anakBaru     AnakBaru[]
   binaan       UserPosyandu[]
+  jadwal       JadwalPosyandu[]
 
   @@index([kelurahanId])
+}
+
+/// Jadwal sesi posyandu per bulan — sinkron SATU ARAH dari SIMPUS (baca-saja, non-rahasia).
+/// id = id asli SIMPUS dipertahankan (pola sama Kelurahan/Posyandu — BUKAN AnakSimpus yg pakai idSimpus terpisah,
+/// krn tak ada relasi lokal apa pun yg menunjuk ke baris ini).
+model JadwalPosyandu {
+  id           Int      @id
+  posyanduId   Int
+  posyandu     Posyandu @relation(fields: [posyanduId], references: [id])
+  tahun        Int
+  bulan        Int
+  tanggal      Int
+  namaPosyandu String   @default("")
+  sinkronPada  DateTime
+
+  @@unique([posyanduId, tahun, bulan, namaPosyandu])
+  @@index([tahun, bulan])
 }
 
 // ═══════════ AKUN ═══════════

@@ -12,18 +12,31 @@ vi.mock("@/lib/db", async () => {
   const fs = await import("node:fs");
   const path = await import("node:path");
   const os = await import("node:os");
+  const { execSync } = await import("node:child_process");
   const asal = path.resolve(process.cwd(), "prisma", "dev.db");
   const salinan = path.join(os.tmpdir(), "simpus-posyandu-uji-sinkron.db");
   fs.copyFileSync(asal, salinan); // tiap run mulai dari state dev.db yang bersih
-  return { db: new PrismaClient({ datasourceUrl: "file:" + salinan.split(path.sep).join("/") }) };
+  const urlSalinan = "file:" + salinan.split(path.sep).join("/");
+  // dev.db asli belum tentu punya tabel model yang baru ditambah ke schema.prisma (mis.
+  // JadwalPosyandu, PLAN 2026-07-19 d) — sinkronkan skema HANYA ke salinan temp ini via
+  // DATABASE_URL override. dev.db ASLI tidak pernah tersentuh (bukti: md5 tak berubah).
+  execSync("npx prisma db push --skip-generate --accept-data-loss", {
+    env: { ...process.env, DATABASE_URL: urlSalinan },
+    stdio: "ignore",
+  });
+  return { db: new PrismaClient({ datasourceUrl: urlSalinan }) };
 });
 
 // segel()/buka() butuh KUNCI_SERVER (vitest tidak memuat .env) — kunci uji deterministik.
 process.env.KUNCI_SERVER = "11".repeat(32);
 
-import { stringifyStabil, rencanaDiffAnak, terapkanHasil, type AnakLokal, type AnakSumber, type SumberSinkron } from "@/lib/sinkron";
+import { stringifyStabil, rencanaDiffAnak, terapkanHasil, type AnakLokal, type AnakSumber, type SumberSinkron, type JadwalSumber } from "@/lib/sinkron";
 import { buka, type IsiAnak } from "@/lib/brankas";
 import { db } from "@/lib/db";
+
+function jadwal(over: Partial<JadwalSumber> = {}): JadwalSumber {
+  return { id: 1, posyanduId: 10, tahun: 2026, bulan: 7, tanggal: 15, namaPosyandu: "Posyandu Melati", ...over };
+}
 
 function isi(over: Partial<IsiAnak> = {}): IsiAnak {
   return {
@@ -257,4 +270,116 @@ describe("terapkanHasil — satu baris busuk tidak menjegal sisa sinkron (integr
     const k = await db.kelurahan.findUnique({ where: { id: idKel } });
     expect(k?.nama).toBe(namaBaru);
   });
+});
+
+// ══ Unit JADWAL (PLAN 2026-07-19 d): batch-diff JadwalPosyandu, pola PERSIS kelurahan/posyandu ══
+describe("terapkanHasil — jadwal posyandu (baru/ubah/identik/ketahanan)", () => {
+  beforeEach(async () => {
+    await db.jadwalPosyandu.deleteMany({});
+  });
+
+  it("jadwal baru (tak ada lokal) → createMany; HasilSinkron.jadwal = jumlah baris sumber", async () => {
+    const wilayah = await wilayahDariLokal();
+    const pid = wilayah.posyandu[0].id;
+    const sumber: SumberSinkron = {
+      ...wilayah,
+      anak: [],
+      idTidakJelas: [],
+      gagalDekripsi: 0,
+      jadwal: [
+        jadwal({ id: 9801, posyanduId: pid, bulan: 7, tanggal: 10 }),
+        jadwal({ id: 9802, posyanduId: pid, bulan: 8, tanggal: 20 }), // bulan beda — bulan 7 dipakai baris lain (@@unique)
+      ],
+    };
+    const hasil = await terapkanHasil(sumber);
+    const rows = await db.jadwalPosyandu.findMany({ orderBy: { id: "asc" } });
+    expect(rows.map((r) => r.id)).toEqual([9801, 9802]);
+    expect(rows[0].tanggal).toBe(10);
+    expect(hasil.jadwal).toBe(2);
+  });
+
+  it("jadwal berubah (tanggal beda) → update baris yang berubah saja", async () => {
+    const wilayah = await wilayahDariLokal();
+    const pid = wilayah.posyandu[0].id;
+    await terapkanHasil({
+      ...wilayah, anak: [], idTidakJelas: [], gagalDekripsi: 0,
+      jadwal: [jadwal({ id: 9811, posyanduId: pid, tanggal: 10 })],
+    });
+
+    const hasil = await terapkanHasil({
+      ...wilayah, anak: [], idTidakJelas: [], gagalDekripsi: 0,
+      jadwal: [jadwal({ id: 9811, posyanduId: pid, tanggal: 17 })], // tanggal berubah
+    });
+    const row = await db.jadwalPosyandu.findUnique({ where: { id: 9811 } });
+    expect(row?.tanggal).toBe(17);
+    expect(hasil.jadwal).toBe(1);
+  });
+
+  it("identik → createMany/update TIDAK dipanggil sama sekali (tak ada tulis sia-sia)", async () => {
+    const wilayah = await wilayahDariLokal();
+    const pid = wilayah.posyandu[0].id;
+    const tetap = jadwal({ id: 9821, posyanduId: pid, tanggal: 12 });
+    await terapkanHasil({ ...wilayah, anak: [], idTidakJelas: [], gagalDekripsi: 0, jadwal: [tetap] });
+
+    const spyCreate = vi.spyOn(db.jadwalPosyandu, "createMany");
+    const spyUpdate = vi.spyOn(db.jadwalPosyandu, "update");
+    const hasil = await terapkanHasil({ ...wilayah, anak: [], idTidakJelas: [], gagalDekripsi: 0, jadwal: [tetap] });
+    expect(spyCreate).not.toHaveBeenCalled();
+    expect(spyUpdate).not.toHaveBeenCalled();
+    expect(hasil.jadwal).toBe(1);
+    spyCreate.mockRestore();
+    spyUpdate.mockRestore();
+  });
+
+  it("1 baris gagal (duplikat id sintetis) di createMany: baris sehat tetap masuk, duplikat tak menjegal", async () => {
+    const wilayah = await wilayahDariLokal();
+    const pid = wilayah.posyandu[0].id;
+    const sumber: SumberSinkron = {
+      ...wilayah, anak: [], idTidakJelas: [], gagalDekripsi: 0,
+      jadwal: [
+        jadwal({ id: 9831, posyanduId: pid, bulan: 7, tanggal: 5 }),
+        jadwal({ id: 9831, posyanduId: pid, bulan: 7, tanggal: 25 }), // busuk: duplikat id (primary key)
+        jadwal({ id: 9832, posyanduId: pid, bulan: 8, tanggal: 8 }), // bulan beda dari 9831/9833 (@@unique)
+        jadwal({ id: 9833, posyanduId: pid, bulan: 9, tanggal: 9 }),
+      ],
+    };
+    const hasil = await terapkanHasil(sumber); // TIDAK boleh melempar
+    const rows = await db.jadwalPosyandu.findMany({ orderBy: { id: "asc" } });
+    expect(rows.map((r) => r.id)).toEqual([9831, 9832, 9833]); // tetangga sehat tak dikorbankan
+    // Pola sama kelurahan/posyandu (bukan anak): HasilSinkron.jadwal = jumlah baris SUMBER,
+    // bukan jumlah yang berhasil ditulis — baris busuk tak dikurangi dari hitungan ini.
+    expect(hasil.jadwal).toBe(4);
+  });
+
+  // Revisi ronde 2 critic (MAYOR): transisi produksi nyata — kode Wave 1 bisa di-deploy sebelum
+  // DDL Wave 3 (tabel JadwalPosyandu) ada di database produksi. Blok jadwal HARUS gagal senyap
+  // (bukan menjegal pelaporan sukses langkah 1-5 yang lain) kalau tabelnya belum ada.
+  it("tabel JadwalPosyandu belum ada (transisi Wave1→Wave3 produksi) → tak throw, hasil.jadwal=0, field lain tetap benar", async () => {
+    // Timeout digenjot (default 5dtk) — cleanup di finally menjalankan `npx prisma db push` lagi
+    // (proses baru tiap kali, bukan cuma query sqlite), bisa >5dtk di mesin yang lebih lambat.
+    const path = await import("node:path");
+    const os = await import("node:os");
+    const { execSync } = await import("node:child_process");
+    // Path PERSIS sama dgn salinan temp yang dipakai mock @/lib/db di atas.
+    const urlSalinan = "file:" + path.join(os.tmpdir(), "simpus-posyandu-uji-sinkron.db").split(path.sep).join("/");
+
+    const wilayah = await wilayahDariLokal();
+    await db.$executeRawUnsafe('DROP TABLE "JadwalPosyandu"');
+    try {
+      const sumber: SumberSinkron = {
+        ...wilayah, anak: [], idTidakJelas: [], gagalDekripsi: 0,
+        jadwal: [jadwal({ id: 9851, posyanduId: wilayah.posyandu[0].id })],
+      };
+      const hasil = await terapkanHasil(sumber); // TIDAK boleh melempar walau tabel hilang
+      expect(hasil.jadwal).toBe(0); // blok jadwal gagal total → dilaporkan 0, bukan menjegal field lain
+      expect(hasil.kelurahan).toBe(wilayah.kelurahan.length); // langkah 1-5 tetap sukses & terlapor benar
+      expect(hasil.posyandu).toBe(wilayah.posyandu.length);
+    } finally {
+      // Pulihkan tabel — beforeEach test berikutnya (deleteMany) butuh tabel ada.
+      execSync("npx prisma db push --skip-generate --accept-data-loss", {
+        env: { ...process.env, DATABASE_URL: urlSalinan },
+        stdio: "ignore",
+      });
+    }
+  }, 20000);
 });

@@ -14,7 +14,7 @@ export async function GET(req: Request): Promise<Response> {
   try {
     const h = await jalankanSinkron();
     await db.logAktivitas.create({
-      data: { aksi: "SINKRON_CRON", detail: `${h.posyandu} posyandu · ${h.anak} anak · ${h.dicocokkan} dicocokkan` },
+      data: { aksi: "SINKRON_CRON", detail: `${h.posyandu} posyandu · ${h.anak} anak · ${h.jadwal} jadwal · ${h.dicocokkan} dicocokkan` },
     });
     return NextResponse.json({ ok: true, ...h });
   } catch (e) {

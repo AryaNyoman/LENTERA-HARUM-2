@@ -24,6 +24,7 @@ interface HasilSinkron {
   kelurahan: number;
   posyandu: number;
   anak: number;
+  jadwal: number;
   gagalDekripsi: number;
   dicocokkan: number; // AnakBaru DIEKSPOR → MASUK_SIMPUS
 }
@@ -43,11 +44,24 @@ export interface AnakLokal {
   isi: IsiAnak | null;
 }
 
-/** Bahan mentah hasil `tarikSumber()` — cukup untuk `terapkanHasil()` tanpa koneksi pg lagi. */
+/** Jadwal posyandu sebagaimana dibaca dari SUMBER (SIMPUS) — non-rahasia, tanpa dekripsi. */
+export interface JadwalSumber {
+  id: number;
+  posyanduId: number;
+  tahun: number;
+  bulan: number;
+  tanggal: number;
+  namaPosyandu: string;
+}
+
+/** Bahan mentah hasil `tarikSumber()` — cukup untuk `terapkanHasil()` tanpa koneksi pg lagi.
+ *  `jadwal` opsional (default [] di `terapkanHasil`) supaya sumber sintetis lama di test yang
+ *  belum menyertakannya tetap kompatibel — `tarikSumber()` produksi SELALU mengisinya. */
 export interface SumberSinkron {
   kelurahan: { id: number; nama: string; urutan: number }[];
   posyandu: { id: number; kelurahanId: number; nama: string; namaPosyandu: string; aktif: boolean; khusus: boolean }[];
   anak: AnakSumber[];
+  jadwal?: JadwalSumber[];
   idTidakJelas: number[]; // id posyandu keranjang "Alamat Tidak Jelas" — anaknya tak diimpor
   gagalDekripsi: number;
 }
@@ -184,10 +198,19 @@ export async function tarikSumber(): Promise<SumberSinkron> {
       }
     }
 
+    // jadwal posyandu: non-rahasia, tanpa dekripsi — kolom PERSIS dipakai terapkanHasil (diff by id).
+    const jad = await pg.query<{ id: number; posyanduId: number; tahun: number; bulan: number; tanggal: number; namaPosyandu: string }>(
+      'SELECT id, "posyanduId", tahun, bulan, tanggal, "namaPosyandu" FROM "JadwalPosyandu" ORDER BY id',
+    );
+    const jadwal: JadwalSumber[] = jad.rows.map((j) => ({
+      id: j.id, posyanduId: j.posyanduId, tahun: j.tahun, bulan: j.bulan, tanggal: j.tanggal, namaPosyandu: j.namaPosyandu,
+    }));
+
     return {
       kelurahan: kel.rows.map((k) => ({ id: k.id, nama: k.nama, urutan: k.urutan })),
       posyandu,
       anak,
+      jadwal,
       idTidakJelas: [...idTidakJelas],
       gagalDekripsi,
     };
@@ -318,10 +341,58 @@ export async function terapkanHasil(sumber: SumberSinkron): Promise<HasilSinkron
   const semuaPosyanduId = new Set<number>([...petaPosLokal.keys(), ...posBaru.map((p) => p.id)]);
   await bangunCache(kini, hidup, semuaPosyanduId);
 
+  // 6) jadwal posyandu (PLAN 2026-07-19 d) — pola PERSIS kelurahan/posyandu di atas: baca lokal
+  // sekali, diff field-per-field, createMany utk baru + update per baris berubah, try/catch
+  // per-batch dgn fallback per-baris (temuan ketahanan critic H2, direplikasi apa adanya).
+  // Independen dari anak/cache di atas → ditaruh di akhir, tidak menyisipi langkah 1-5 yang
+  // sudah teruji supaya diff berkas ini tetap murni tambahan.
+  //
+  // Lapisan TAMBAHAN (revisi ronde 2 critic, MAYOR): seluruh langkah 6 dibungkus SATU try/catch
+  // di luar (mirip level revalidateTag) — bukan pengganti try/catch per-batch di dalam, keduanya
+  // jalan bersama. Alasan: kondisi transisi produksi nyata — kode Wave 1 ini bisa di-deploy
+  // SEBELUM tabel JadwalPosyandu ada di database produksi (DDL Wave 3 gerbang terpisah, boleh
+  // tertunda). Tanpa lapisan ini, `db.jadwalPosyandu.findMany()` di baris pertama akan melempar
+  // ("no such table") dan MEMBATALKAN pelaporan sukses langkah 1-5 di atas yang sebenarnya
+  // sudah tertulis benar (kelurahan/posyandu/anak/cache) — admin/cron akan melihat "gagal" yang
+  // menyesatkan. Kalau seluruh blok ini gagal, `jadwal` dilaporkan 0 (bukan error keseluruhan).
+  let jadwalBerhasil = 0;
+  try {
+    const jadwalSumber = sumber.jadwal ?? [];
+    const jadwalLokal = await db.jadwalPosyandu.findMany();
+    const petaJadwalLokal = new Map(jadwalLokal.map((j) => [j.id, j]));
+    const jadwalBaru = jadwalSumber.filter((j) => !petaJadwalLokal.has(j.id));
+    const jadwalUbah = jadwalSumber.filter((j) => {
+      const l = petaJadwalLokal.get(j.id);
+      return l !== undefined && (
+        l.posyanduId !== j.posyanduId || l.tahun !== j.tahun || l.bulan !== j.bulan ||
+        l.tanggal !== j.tanggal || l.namaPosyandu !== j.namaPosyandu
+      );
+    });
+    if (jadwalBaru.length > 0) {
+      try {
+        await db.jadwalPosyandu.createMany({ data: jadwalBaru.map((j) => ({ ...j, sinkronPada: kini })) });
+      } catch {
+        for (const j of jadwalBaru) {
+          try { await db.jadwalPosyandu.create({ data: { ...j, sinkronPada: kini } }); } catch { /* lewati baris busuk */ }
+        }
+      }
+    }
+    for (const j of jadwalUbah) {
+      try {
+        await db.jadwalPosyandu.update({
+          where: { id: j.id },
+          data: { posyanduId: j.posyanduId, tahun: j.tahun, bulan: j.bulan, tanggal: j.tanggal, namaPosyandu: j.namaPosyandu, sinkronPada: kini },
+        });
+      } catch { /* lewati */ }
+    }
+    jadwalBerhasil = jadwalSumber.length; // pola sama kelurahan/posyandu: jumlah baris sumber, bukan yg berhasil ditulis
+  } catch { /* seluruh blok jadwal gagal (mis. tabel belum ada) — langkah 1-5 di atas tetap dilaporkan sukses */ }
+
   return {
     kelurahan: sumber.kelurahan.length,
     posyandu: sumber.posyandu.length,
     anak: sumber.anak.length - gagalTulis, // semantik lama: baris yang sukses diproses ronde ini
+    jadwal: jadwalBerhasil,
     gagalDekripsi: sumber.gagalDekripsi + gagalTulis,
     dicocokkan,
   };
