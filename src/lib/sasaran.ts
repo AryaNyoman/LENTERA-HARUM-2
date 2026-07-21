@@ -85,3 +85,59 @@ export function perluSasaran(vaksin: Record<string, string>, tglLahir: string, p
   if (kelompokUmurSasaran(umurBulanPada(tglLahir, padaTanggal)) === null) return false;
   return dosisJatuhTempo(vaksin, tglLahir, padaTanggal).length > 0;
 }
+
+// ═══ Langkah 2 (menu Sweeping): kelompokkan jadwal posyandu ke bucket hariIni/besok/kemarin ═══
+
+/** Baris jadwal posyandu (subset kolom JadwalPosyandu yang relevan bagi bucket sweeping —
+ *  lihat prisma/schema.prisma). Bentuk struct SAJA, tak bergantung Prisma Client di sini
+ *  (modul ini murni logika, testable tanpa DB). */
+export interface JadwalRingkas {
+  posyanduId: number;
+  tahun: number;
+  bulan: number;
+  tanggal: number;
+  namaPosyandu: string;
+}
+
+export type BucketSweeping = "hariIni" | "besok" | "kemarin";
+
+/** ISO YYYY-MM-DD (zero-padded) dari komponen tanggal LOKAL suatu Date. Dipakai KHUSUS
+ *  utk `acuan` ("sekarang" saat halaman dirender) — getter lokal (bukan UTC), konsisten
+ *  dgn hitungUsiaBulan di anak.ts yang juga membaca now via getFullYear/getMonth/getDate
+ *  lokal (BUKAN pola UTC-safe tglTambahHari/tglTambahBulan di vaksin.ts, yang beroperasi
+ *  di atas STRING ISO tersimpan, bukan objek Date "now" dari jam server). Keputusan
+ *  builder: menyamakan dgn konvensi "now" yang sudah ada, bukan menambah varian ketiga. */
+function isoLokal(d: Date): string {
+  const y = d.getFullYear();
+  const bulan = String(d.getMonth() + 1).padStart(2, "0");
+  const tgl = String(d.getDate()).padStart(2, "0");
+  return `${y}-${bulan}-${tgl}`;
+}
+
+/** Kelompokkan baris jadwal posyandu ke 3 bucket relatif thd `acuan` (biasanya "sekarang"
+ *  saat halaman /kader/sweeping dirender): hariIni / besok (H-1, persiapan) / kemarin
+ *  (susulan, H+1). Pakai objek Date asli + setDate(±1) utk hitung besok/kemarin — BUKAN
+ *  manipulasi string — supaya rollover akhir bulan/tahun otomatis benar (mis. 31 Jan →
+ *  besok = 1 Feb, 31 Des → besok = 1 Jan tahun berikutnya). Baris yang tak cocok satupun
+ *  dari 3 ISO acuan diabaikan (boleh 0 kecocokan). Kirim SEMUA baris jadwal posyandu
+ *  binaan (bukan hanya "bulan ini") — tabel kecil, rollover lintas-bulan otomatis benar
+ *  tanpa kasus khusus di pemanggil. */
+export function kelompokkanJadwal(jadwal: JadwalRingkas[], acuan: Date): Record<BucketSweeping, JadwalRingkas[]> {
+  const besokD = new Date(acuan);
+  besokD.setDate(besokD.getDate() + 1);
+  const kemarinD = new Date(acuan);
+  kemarinD.setDate(kemarinD.getDate() - 1);
+
+  const isoHariIni = isoLokal(acuan);
+  const isoBesok = isoLokal(besokD);
+  const isoKemarin = isoLokal(kemarinD);
+
+  const hasil: Record<BucketSweeping, JadwalRingkas[]> = { hariIni: [], besok: [], kemarin: [] };
+  for (const j of jadwal) {
+    const iso = `${j.tahun}-${String(j.bulan).padStart(2, "0")}-${String(j.tanggal).padStart(2, "0")}`;
+    if (iso === isoHariIni) hasil.hariIni.push(j);
+    else if (iso === isoBesok) hasil.besok.push(j);
+    else if (iso === isoKemarin) hasil.kemarin.push(j);
+  }
+  return hasil;
+}
