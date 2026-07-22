@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
@@ -144,6 +145,7 @@ export async function buatKader(
     },
   });
   await catat(user.id, "AKUN_KADER_DIBUAT", `oleh admin; binaan ${posyanduIds.join(",")}`);
+  revalidatePath("/admin");
   return { ok: `Akun kader "${username}" dibuat.`, sandi };
 }
 
@@ -178,6 +180,7 @@ export async function buatOrtu(
     },
   });
   await catat(user.id, "AKUN_ORTU_DIBUAT_ADMIN", `oleh admin; kelurahan ${kelurahanId}`);
+  revalidatePath("/admin");
   return { ok: `Akun ortu "${noHp}" dibuat.`, sandi };
 }
 
@@ -187,6 +190,8 @@ export async function setAktif(formData: FormData): Promise<void> {
   const aktif = String(formData.get("aktif")) === "1";
   if (!Number.isInteger(id) || id <= 0) redirect("/admin?galat=Akun+tidak+ditemukan");
   if (id === admin.id) redirect("/admin?galat=Tidak+bisa+menonaktifkan+akun+sendiri");
+  const target = await db.user.findUnique({ where: { id } });
+  if (!target) redirect("/admin?galat=Akun+tidak+ditemukan");
   await db.user.update({ where: { id }, data: { aktif } });
   if (!aktif) await db.sesi.deleteMany({ where: { userId: id } });
   await catat(admin.id, aktif ? "AKUN_DIAKTIFKAN" : "AKUN_DINONAKTIFKAN", `user ${id}`);
