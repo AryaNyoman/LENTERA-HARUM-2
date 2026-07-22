@@ -6,6 +6,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { cekBatasSinkron } from "@/lib/batas-sinkron";
+import { formatWaktuIndo } from "@/lib/waktu";
 
 const JAM_MS = 3_600_000;
 
@@ -37,7 +38,7 @@ describe("cekBatasSinkron — gerbang batas sinkron manual (24 jam DAN 120 jam, 
       expect(hasil.alasan).toContain("3x");
       expect(hasil.alasan.toLowerCase()).toContain("5 hari");
       const bolehLagi = new Date(terlama.getTime() + 120 * JAM_MS);
-      expect(hasil.alasan).toContain(bolehLagi.toLocaleString("id-ID"));
+      expect(hasil.alasan).toContain(formatWaktuIndo(bolehLagi));
     }
   });
 

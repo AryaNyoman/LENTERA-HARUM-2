@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { formatWaktuIndo } from "@/lib/waktu";
 
 /** ═══ Batas sinkron manual SIMPUS (PLAN 2026-07-19 Y3) ═══
  *  Lindungi Neon SIMPUS dari overuse tombol "Tarik sekarang": maks 1 percobaan per 24 jam
@@ -47,7 +48,7 @@ export function cekBatasSinkron(
     const lagi = bolehLagiPada(w24, MAKS_24_JAM, JENDELA_24_JAM_MS);
     return {
       boleh: false,
-      alasan: `Sudah menarik data hari ini (maks 1x per 24 jam). Coba lagi ${lagi.toLocaleString("id-ID")}.`,
+      alasan: `Sudah menarik data hari ini (maks 1x per 24 jam). Coba lagi ${formatWaktuIndo(lagi)}.`,
     };
   }
   const w120 = dalamJendela(waktuSebelumnya, sekarang, JENDELA_120_JAM_MS);
@@ -55,7 +56,7 @@ export function cekBatasSinkron(
     const lagi = bolehLagiPada(w120, MAKS_120_JAM, JENDELA_120_JAM_MS);
     return {
       boleh: false,
-      alasan: `Sudah 3x dalam 5 hari (maks 3x per 120 jam). Coba lagi ${lagi.toLocaleString("id-ID")}.`,
+      alasan: `Sudah 3x dalam 5 hari (maks 3x per 120 jam). Coba lagi ${formatWaktuIndo(lagi)}.`,
     };
   }
   return { boleh: true };
@@ -79,7 +80,7 @@ export async function sisaBatasSinkron(userId: number): Promise<{ terkunci: bool
     const lagi = w24.length >= MAKS_24_JAM
       ? bolehLagiPada(w24, MAKS_24_JAM, JENDELA_24_JAM_MS)
       : bolehLagiPada(w120, MAKS_120_JAM, JENDELA_120_JAM_MS);
-    return { terkunci: true, caption: `Terkunci — coba lagi ${lagi.toLocaleString("id-ID")}.` };
+    return { terkunci: true, caption: `Terkunci — coba lagi ${formatWaktuIndo(lagi)}.` };
   }
   return {
     terkunci: false,
