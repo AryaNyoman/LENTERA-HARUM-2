@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { kelompokUmurSasaran, dosisJatuhTempo, perluSasaran, kelompokkanJadwal } from "@/lib/sasaran";
-import type { JadwalRingkas } from "@/lib/sasaran";
+import { kelompokUmurSasaran, dosisJatuhTempo, perluSasaran, kelompokkanJadwal, kelompokDosisPerJatah } from "@/lib/sasaran";
+import type { DosisSasaran, JadwalRingkas } from "@/lib/sasaran";
 
 // LAHIR sama dgn konvensi aturan-dosis.test.ts — nilai min/max slot yang dikutip di
 // bawah adalah nilai yang SUDAH teruji di aturan-dosis.test.ts utk tglLahir ini (reuse,
@@ -149,5 +149,50 @@ describe("kelompokkanJadwal — bucket hariIni/besok/kemarin dari baris JadwalPo
 
   it("array jadwal kosong → 3 bucket kosong, tak error", () => {
     expect(kelompokkanJadwal([], acuan)).toEqual({ hariIni: [], besok: [], kemarin: [] });
+  });
+});
+
+describe("kelompokDosisPerJatah — kelompokkan dosis due per jatah kunjungan (UMUR_IDEAL sama)", () => {
+  // kode dosis asli: PENTA1/POLIO2/PCV1 = umur 2 bln; PENTA2/POLIO3/PCV2 = umur 3 bln;
+  // PENTA3/POLIO4/IPV1 = umur 4 bln (lihat UMUR_IDEAL di src/lib/vaksin.ts). nama/status
+  // tak dipakai logika pengelompokan, diisi placeholder minimal.
+  function mkDosis(kode: string): DosisSasaran {
+    return { kode, nama: kode, status: "kuning" };
+  }
+
+  it("array kosong → terlihat & sisa kosong", () => {
+    expect(kelompokDosisPerJatah([])).toEqual({ terlihat: [], sisa: [] });
+  });
+
+  it("satu kunjungan saja (3 dosis, UMUR_IDEAL sama) → semua masuk terlihat, sisa kosong", () => {
+    const dosis = [mkDosis("PENTA1"), mkDosis("POLIO2"), mkDosis("PCV1")]; // semua umur 2
+    const { terlihat, sisa } = kelompokDosisPerJatah(dosis);
+    expect(terlihat.map((d) => d.kode).sort()).toEqual(["PCV1", "PENTA1", "POLIO2"]);
+    expect(sisa).toEqual([]);
+  });
+
+  it("dua kunjungan → grup umur termuda di terlihat, grup berikutnya di sisa", () => {
+    const dosis = [mkDosis("PENTA1"), mkDosis("POLIO2"), mkDosis("PENTA2"), mkDosis("POLIO3")]; // umur 2 & umur 3
+    const { terlihat, sisa } = kelompokDosisPerJatah(dosis);
+    expect(terlihat.map((d) => d.kode).sort()).toEqual(["PENTA1", "POLIO2"]);
+    expect(sisa.map((d) => d.kode).sort()).toEqual(["PENTA2", "POLIO3"]);
+  });
+
+  it("tiga+ kunjungan → hanya grup paling awal di terlihat; SEMUA grup lain (bukan cuma berikutnya) masuk sisa", () => {
+    const dosis = [
+      mkDosis("PENTA1"), mkDosis("POLIO2"), // umur 2
+      mkDosis("PENTA2"), mkDosis("POLIO3"), // umur 3
+      mkDosis("PENTA3"), mkDosis("POLIO4"), mkDosis("IPV1"), // umur 4
+    ];
+    const { terlihat, sisa } = kelompokDosisPerJatah(dosis);
+    expect(terlihat.map((d) => d.kode).sort()).toEqual(["PENTA1", "POLIO2"]);
+    expect(sisa.map((d) => d.kode).sort()).toEqual(["IPV1", "PENTA2", "PENTA3", "POLIO3", "POLIO4"]);
+  });
+
+  it("urutan input diacak (kunjungan umur besar duluan di array) → tetap pilih umur TERKECIL sbg terlihat, bukan posisi array", () => {
+    const dosis = [mkDosis("PENTA2"), mkDosis("POLIO3"), mkDosis("PENTA1"), mkDosis("POLIO2")];
+    const { terlihat, sisa } = kelompokDosisPerJatah(dosis);
+    expect(terlihat.map((d) => d.kode).sort()).toEqual(["PENTA1", "POLIO2"]);
+    expect(sisa.map((d) => d.kode).sort()).toEqual(["PENTA2", "POLIO3"]);
   });
 });

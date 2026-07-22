@@ -6,7 +6,7 @@
  *  pakai `validasiDosis` di vaksin.ts; jangan tertukar. */
 
 import {
-  DOSIS_REGISTRY, adaDosis, dosisTakBerlaku, batasDosis, namaKode, tglTambahBulan,
+  DOSIS_REGISTRY, adaDosis, dosisTakBerlaku, batasDosis, namaKode, tglTambahBulan, UMUR_IDEAL,
 } from "@/lib/vaksin";
 
 const KODE_HB0 = "HB0_1_7H"; // diberi saat lahir — tak pernah target sweeping (kebijakan simpus-imun direplikasi)
@@ -77,6 +77,21 @@ export function dosisJatuhTempo(
     hasil.push({ kode, nama: namaKode(kode), status: telat > AMBANG_MERAH_HARI ? "merah" : "kuning" });
   }
   return hasil;
+}
+
+/** Kelompokkan dosis due jadi `terlihat` (grup UMUR_IDEAL paling kecil — kunjungan paling
+ *  awal yang belum lengkap) & `sisa` (SEMUA grup UMUR_IDEAL lebih besar, digabung rata
+ *  tanpa sub-label per kunjungan). Dosis yang UMUR_IDEAL-nya SAMA = satu kunjungan (cth
+ *  DPT1+bOPV2+PCV1 sama-sama umur 2 bulan) tetap tampil bersama — keputusan pemilik: kartu
+ *  Sweeping jangan tampilkan >1 kunjungan sekaligus, krn kunjungan berikutnya perlu jarak
+ *  min 28 hari dari kunjungan ini (belum relevan ditampilkan langsung). Array kosong →
+ *  keduanya kosong. */
+export function kelompokDosisPerJatah(dosis: DosisSasaran[]): { terlihat: DosisSasaran[]; sisa: DosisSasaran[] } {
+  if (dosis.length === 0) return { terlihat: [], sisa: [] };
+  const umurTerawal = Math.min(...dosis.map((d) => UMUR_IDEAL[d.kode]));
+  const terlihat = dosis.filter((d) => UMUR_IDEAL[d.kode] === umurTerawal);
+  const sisa = dosis.filter((d) => UMUR_IDEAL[d.kode] !== umurTerawal);
+  return { terlihat, sisa };
 }
 
 /** true bila anak masih dalam kelompok umur sweeping (bukan drop-out) DAN punya minimal

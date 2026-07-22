@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import type { AnakView } from "@/lib/anak";
 import { ambilAnakBinaan, binaanIds, fmtTglId, hitungUsiaBulan, kelompokUsia } from "@/lib/anak";
 import type { BucketSweeping, DosisSasaran, JadwalRingkas } from "@/lib/sasaran";
-import { kelompokkanJadwal, perluSasaran, dosisJatuhTempo } from "@/lib/sasaran";
+import { kelompokkanJadwal, perluSasaran, dosisJatuhTempo, kelompokDosisPerJatah } from "@/lib/sasaran";
 import { nomorInternasional } from "@/lib/pojok-baca";
 
 const URUTAN_BUCKET: { kunci: BucketSweeping; judul: string; emoji: string; pesanKosong: string }[] = [
@@ -27,6 +27,22 @@ function pad2(n: number): string {
 
 function labelPosyandu(p: { nama: string; namaPosyandu: string }): string {
   return p.namaPosyandu ? `${p.nama} (${p.namaPosyandu})` : p.nama;
+}
+
+function badgeDosis(d: DosisSasaran) {
+  return (
+    <span
+      key={d.kode}
+      className="rounded-md px-1.5 py-0.5 text-[9.5px] font-bold"
+      style={
+        d.status === "merah"
+          ? { background: "var(--merah-muda)", color: "var(--merah-teks)" }
+          : { background: "var(--kuning-muda)", color: "var(--kuning-teks)" }
+      }
+    >
+      {d.nama}
+    </span>
+  );
 }
 
 export default async function Sweeping({
@@ -79,43 +95,54 @@ export default async function Sweeping({
     (n, b) => n + b.kartu.reduce((m, k) => m + k.anakDue.length, 0), 0,
   );
 
-  const barisAnak = (a: AnakView, dosis: DosisSasaran[]) => (
-    <div key={a.ref} className="flex items-center gap-2 border-t-[1.5px] border-[#eef4f1] py-2 first:border-t-0">
-      <Link href={`/kader/anak/${a.ref}`} prefetch={false} className="min-w-0 flex-1">
-        <p className="font-judul truncate text-[13px] font-bold">{a.isi.nama}</p>
-        <p className="mt-1 flex flex-wrap gap-1">
-          {dosis.map((d) => (
-            <span
-              key={d.kode}
-              className="rounded-md px-1.5 py-0.5 text-[9.5px] font-bold"
-              style={
-                d.status === "merah"
-                  ? { background: "var(--merah-muda)", color: "var(--merah-teks)" }
-                  : { background: "var(--kuning-muda)", color: "var(--kuning-teks)" }
-              }
+  const barisAnak = (a: AnakView, dosis: DosisSasaran[]) => {
+    const { terlihat, sisa } = kelompokDosisPerJatah(dosis);
+    return (
+      <div key={a.ref} className="border-t-[1.5px] border-[#eef4f1] py-2 first:border-t-0">
+        <div className="flex items-center gap-2">
+          <Link href={`/kader/anak/${a.ref}`} prefetch={false} className="min-w-0 flex-1">
+            <p className="font-judul truncate text-[13px] font-bold">{a.isi.nama}</p>
+          </Link>
+          {a.isi.noHp && (
+            <a
+              href={`https://wa.me/${nomorInternasional(a.isi.noHp)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Chat WhatsApp orang tua ${a.isi.nama}`}
+              className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center"
             >
-              {d.nama}
-            </span>
-          ))}
-        </p>
-      </Link>
-      {a.isi.noHp && (
-        <a
-          href={`https://wa.me/${nomorInternasional(a.isi.noHp)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Chat WhatsApp orang tua ${a.isi.nama}`}
-          className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center"
-        >
-          <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full" style={{ background: "var(--teal)" }}>
-            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-            </svg>
-          </span>
-        </a>
-      )}
-    </div>
-  );
+              <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full" style={{ background: "var(--teal)" }}>
+                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                </svg>
+              </span>
+            </a>
+          )}
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+          {terlihat.map(badgeDosis)}
+          {sisa.length > 0 && (
+            <details className="group">
+              <summary
+                className="flex min-h-[44px] list-none cursor-pointer items-center gap-0.5 text-[9.5px] font-bold"
+                style={{ color: "var(--teal-gelap)" }}
+              >
+                +{sisa.length} lagi
+                <svg
+                  viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"
+                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  className="transition-transform group-open:rotate-180"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </summary>
+              <div className="flex flex-wrap gap-1 pb-1">{sisa.map(badgeDosis)}</div>
+            </details>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <main>
