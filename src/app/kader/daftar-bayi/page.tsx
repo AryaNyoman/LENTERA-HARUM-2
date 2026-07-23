@@ -4,6 +4,7 @@ import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
 import type { AnakView } from "@/lib/anak";
 import { ambilAnakBinaan, hitungUsiaBulan, kelompokUsia, labelUsia } from "@/lib/anak";
+import { labelOrtuRtRw } from "@/lib/anak-tampilan";
 import { DOSIS_REGISTRY, adaDosis, dosisTakBerlaku, lengkap, SYARAT_IDL, SYARAT_IBL } from "@/lib/vaksin";
 
 const FILTER = [
@@ -54,6 +55,7 @@ export default async function DaftarBayi({
     const perluV = a.olehOrtu && !a.terverifikasi;
     const belumSetor = a.sumber === "BARU" && a.status === "DRAF";
     const rot = i % 2 === 0 ? "rotate(2deg)" : "rotate(-2deg)";
+    const ortuRtRw = labelOrtuRtRw(a.isi.namaOrtu, a.isi.rtRw);
     return (
       <Link
         key={a.ref}
@@ -100,7 +102,7 @@ export default async function DaftarBayi({
           <p className="font-judul truncate text-base font-bold">{a.isi.nama}</p>
           <p className="truncate text-[11px] font-semibold text-[var(--abu)]">
             {a.isi.jk === "P" ? "Perempuan" : "Laki-laki"} · {labelUsia(usia)}
-            {a.isi.namaOrtu && <> · ortu: {a.isi.namaOrtu}</>}
+            {ortuRtRw && <> · {ortuRtRw}</>}
           </p>
           <div className="mt-1.5 flex items-center gap-2">
             <div className="h-[9px] flex-1 overflow-hidden rounded-full bg-[#f0f5f2]">
