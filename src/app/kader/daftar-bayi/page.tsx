@@ -159,6 +159,16 @@ export default async function DaftarBayi({
             className="w-full bg-transparent text-sm font-semibold outline-none"
           />
           {u && <input type="hidden" name="u" value={u} />}
+          <button
+            type="submit"
+            aria-label="Cari"
+            className="flex h-11 w-11 shrink-0 items-center justify-center"
+          >
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--abu)" strokeWidth="2.4" strokeLinecap="round" className="shrink-0">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+          </button>
         </form>
 
         <div className="pop pop-1 mt-2.5 flex gap-2 overflow-x-auto pb-1">

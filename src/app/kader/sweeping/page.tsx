@@ -3,7 +3,7 @@ import KepalaHalaman from "@/components/kepala-halaman";
 import { wajibUser } from "@/lib/sesi";
 import { db } from "@/lib/db";
 import type { AnakView } from "@/lib/anak";
-import { ambilAnakBinaan, binaanIds, fmtTglId, hitungUsiaBulan, kelompokUsia } from "@/lib/anak";
+import { ambilAnakBinaan, binaanIds, fmtTglId, hitungUsiaBulan, kelompokUsia, labelUsia } from "@/lib/anak";
 import { labelOrtuRtRw } from "@/lib/anak-tampilan";
 import type { BucketSweeping, DosisSasaran, JadwalRingkas } from "@/lib/sasaran";
 import { kelompokkanJadwal, perluSasaran, dosisJatuhTempo, kelompokDosisPerJatah } from "@/lib/sasaran";
@@ -99,11 +99,13 @@ export default async function Sweeping({
   const barisAnak = (a: AnakView, dosis: DosisSasaran[]) => {
     const { terlihat, sisa } = kelompokDosisPerJatah(dosis);
     const ortuRtRw = labelOrtuRtRw(a.isi.namaOrtu, a.isi.rtRw);
+    const usia = hitungUsiaBulan(a.isi.tglLahir, now);
     return (
       <div key={a.ref} className="border-t-[1.5px] border-[#eef4f1] py-2 first:border-t-0">
         <div className="flex items-center gap-2">
           <Link href={`/kader/anak/${a.ref}`} prefetch={false} className="min-w-0 flex-1">
             <p className="font-judul truncate text-[13px] font-bold">{a.isi.nama}</p>
+            <p className="truncate text-[10px] font-semibold text-[var(--abu)]">{labelUsia(usia)}</p>
             {ortuRtRw && <p className="truncate text-[10px] font-semibold text-[var(--abu)]">{ortuRtRw}</p>}
           </Link>
           {a.isi.noHp && (
